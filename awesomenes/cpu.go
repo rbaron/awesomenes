@@ -5,13 +5,17 @@ import (
 )
 
 const (
-  StatusC = iota
-  StatusZ
-  StatusI
-  StatusD
-  StatusB
-  StatusV
-  StatusN
+  StatusFlagC = iota
+  StatusFlagZ
+  StatusFlagI
+  StatusFlagD
+  StatusFlagB
+  StatusFlagV
+  StatusFlagN
+)
+
+const (
+  MemStackBase = 0x10ff
 )
 
 type registers struct {
@@ -22,10 +26,6 @@ type registers struct {
   Y  uint8
   P  uint8
 }
-
-const (
-  MemStackBase = 0x10ff
-)
 
 type CPU struct {
   regs *registers
@@ -70,4 +70,20 @@ func (c *CPU) Pop16() uint16 {
 
 func (c *CPU) stackPos() uint16 {
   return MemStackBase - uint16(c.regs.SP)
+}
+
+func (c *CPU) setFlag(flag uint8) {
+  c.regs.P |= (0x1 << flag)
+}
+
+func (c *CPU) resetFlag(flag uint8) {
+  c.regs.P &= ^(0x1 << flag)
+}
+
+func (c *CPU) setOrReset(flag uint8, cond bool) {
+  if cond {
+    c.setFlag(flag)
+  } else {
+    c.resetFlag(flag)
+  }
 }
