@@ -104,6 +104,62 @@ var instrs = []*instr {
     addrMode: AddrModeAbsX,
     fn:       ora,
   },
+  &instr{
+    name:     "ASL",
+    opcode:   0x0a,
+    size:     1,
+    cycles:   2,
+    addrMode: AddrModeAccumulator,
+    fn:       asl,
+  },
+  &instr{
+    name:     "ASL",
+    opcode:   0x06,
+    size:     2,
+    cycles:   5,
+    addrMode: AddrModeZeroPage,
+    fn:       asl,
+  },
+  &instr{
+    name:     "ASL",
+    opcode:   0x16,
+    size:     2,
+    cycles:   6,
+    addrMode: AddrModeZeroX,
+    fn:       asl,
+  },
+  &instr{
+    name:     "ASL",
+    opcode:   0x0e,
+    size:     3,
+    cycles:   6,
+    addrMode: AddrModeAbs,
+    fn:       asl,
+  },
+  &instr{
+    name:     "ASL",
+    opcode:   0x1e,
+    size:     3,
+    cycles:   7,
+    addrMode: AddrModeAbsX,
+    fn:       asl,
+  },
+  &instr{
+    name:     "PHP",
+    opcode:   0x08,
+    size:     1,
+    cycles:   3,
+    addrMode: AddrModeImplied,
+    fn:       php,
+  },
+  &instr{
+    name:     "BPL",
+    opcode:   0x10,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeRelative,
+    fn:       bpl,
+  },
 }
 
 func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
@@ -127,6 +183,15 @@ func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
 
     case AddrModeIndirectY:
       return uint16(cpu.regs.PC + 1) + uint16(cpu.regs.Y)
+
+    case AddrModeRelative:
+      // Treat operand as signed int8. Sure it uses two's complement?
+      m := cpu.mem.Read8(cpu.regs.PC + 1)
+      if (m >> 7) == 0x1 {
+        return cpu.regs.PC + 2 + uint16(m) - 0x100
+      } else {
+        return cpu.regs.PC + 2 + uint16(m)
+      }
 
     case AddrModeXIndirect:
       m := cpu.mem.Read8(cpu.regs.PC + 1)
@@ -157,6 +222,34 @@ func brk(cpu *CPU, addrMode addressingMode) {
 func ora(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   cpu.regs.A = cpu.regs.A | cpu.mem.Read8(addr)
-  cpu.setOrReset(StatusFlagN, cpu.regs.A & 0x70 != 0)
+  cpu.setOrReset(StatusFlagN, cpu.regs.A & 0x80 != 0)
   cpu.setOrReset(StatusFlagZ, cpu.regs.A == 0)
+}
+
+// Arithmetic shift left
+func asl(cpu *CPU, addrMode addressingMode) {
+  shiftL := func (v uint8) uint8 {
+    cpu.setOrReset(StatusFlagC, v & 0x80 != 0)
+    v = v << 1
+    cpu.setOrReset(StatusFlagZ, v == 0)
+    return v
+  }
+
+  if addrMode == AddrModeAccumulator {
+    cpu.regs.A = shiftL(cpu.regs.A)
+  } else {
+    addr := calculateAddr(cpu, addrMode)
+    cpu.mem.Write8(addr, shiftL(cpu.mem.Read8(addr)))
+  }
+}
+
+// Push processor state
+func php(cpu *CPU, addrMode addressingMode) {
+  cpu.Push8(cpu.regs.P)
+}
+
+// Branch if positive
+func bpl(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.regs.PC = addr
 }
