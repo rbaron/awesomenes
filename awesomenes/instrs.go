@@ -153,12 +153,12 @@ var instrs = []*instr {
     fn:       php,
   },
   &instr{
-    name:     "BPL",
-    opcode:   0x10,
-    size:     2,
-    cycles:   2,
-    addrMode: AddrModeRelative,
-    fn:       bpl,
+    name:     "PLP",
+    opcode:   0x28,
+    size:     1,
+    cycles:   4,
+    addrMode: AddrModeImplied,
+    fn:       plp,
   },
   &instr{
     name:     "CLC",
@@ -167,6 +167,30 @@ var instrs = []*instr {
     cycles:   2,
     addrMode: AddrModeImplied,
     fn:       clc,
+  },
+  &instr{
+    name:     "CLD",
+    opcode:   0xd8,
+    size:     1,
+    cycles:   2,
+    addrMode: AddrModeImplied,
+    fn:       cld,
+  },
+  &instr{
+    name:     "CLI",
+    opcode:   0x58,
+    size:     1,
+    cycles:   2,
+    addrMode: AddrModeImplied,
+    fn:       cli,
+  },
+  &instr{
+    name:     "CLV",
+    opcode:   0xb8,
+    size:     1,
+    cycles:   2,
+    addrMode: AddrModeImplied,
+    fn:       clv,
   },
   &instr{
     name:     "JSR",
@@ -336,6 +360,206 @@ var instrs = []*instr {
     addrMode: AddrModeAbsX,
     fn:       ror,
   },
+  &instr{
+    name:     "BMI",
+    opcode:   0x30,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeRelative,
+    fn:       bmi,
+  },
+  &instr{
+    name:     "BNE",
+    opcode:   0xd0,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeRelative,
+    fn:       bne,
+  },
+  &instr{
+    name:     "BPL",
+    opcode:   0x10,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeRelative,
+    fn:       bpl,
+  },
+  &instr{
+    name:     "BVC",
+    opcode:   0x50,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeRelative,
+    fn:       bvc,
+  },
+  &instr{
+    name:     "BVS",
+    opcode:   0x70,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeRelative,
+    fn:       bvc,
+  },
+  &instr{
+    name:     "CMP",
+    opcode:   0xc9,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeImmediate,
+    fn:       cmp,
+  },
+  &instr{
+    name:     "CMP",
+    opcode:   0xc5,
+    size:     2,
+    cycles:   3,
+    addrMode: AddrModeZeroPage,
+    fn:       cmp,
+  },
+  &instr{
+    name:     "CMP",
+    opcode:   0xd5,
+    size:     2,
+    cycles:   4,
+    addrMode: AddrModeZeroX,
+    fn:       cmp,
+  },
+  &instr{
+    name:     "CMP",
+    opcode:   0xcd,
+    size:     3,
+    cycles:   4,
+    addrMode: AddrModeAbs,
+    fn:       cmp,
+  },
+  &instr{
+    name:     "CMP",
+    opcode:   0xdd,
+    size:     3,
+    cycles:   4,
+    addrMode: AddrModeAbsX,
+    fn:       cmp,
+  },
+  &instr{
+    name:     "CMP",
+    opcode:   0xd9,
+    size:     3,
+    cycles:   4,
+    addrMode: AddrModeAbsY,
+    fn:       cmp,
+  },
+  &instr{
+    name:     "CMP",
+    opcode:   0xc1,
+    size:     2,
+    cycles:   6,
+    addrMode: AddrModeXIndirect,
+    fn:       cmp,
+  },
+  &instr{
+    name:     "CMP",
+    opcode:   0xd1,
+    size:     2,
+    cycles:   5,
+    addrMode: AddrModeIndirectY,
+    fn:       cmp,
+  },
+  &instr{
+    name:     "CPX",
+    opcode:   0xe0,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeImmediate,
+    fn:       cpx,
+  },
+  &instr{
+    name:     "CPX",
+    opcode:   0xe4,
+    size:     2,
+    cycles:   3,
+    addrMode: AddrModeZeroPage,
+    fn:       cpx,
+  },
+  &instr{
+    name:     "CPX",
+    opcode:   0xec,
+    size:     3,
+    cycles:   4,
+    addrMode: AddrModeAbs,
+    fn:       cpx,
+  },
+  &instr{
+    name:     "CPY",
+    opcode:   0xc0,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeImmediate,
+    fn:       cpy,
+  },
+  &instr{
+    name:     "CPY",
+    opcode:   0xc4,
+    size:     2,
+    cycles:   3,
+    addrMode: AddrModeZeroPage,
+    fn:       cpy,
+  },
+  &instr{
+    name:     "CPY",
+    opcode:   0xcc,
+    size:     3,
+    cycles:   4,
+    addrMode: AddrModeAbs,
+    fn:       cpy,
+  },
+  &instr{
+    name:     "DEC",
+    opcode:   0xc6,
+    size:     2,
+    cycles:   5,
+    addrMode: AddrModeZeroPage,
+    fn:       dec,
+  },
+  &instr{
+    name:     "DEC",
+    opcode:   0xd6,
+    size:     2,
+    cycles:   6,
+    addrMode: AddrModeZeroX,
+    fn:       dec,
+  },
+  &instr{
+    name:     "DEC",
+    opcode:   0xce,
+    size:     3,
+    cycles:   6,
+    addrMode: AddrModeAbs,
+    fn:       dec,
+  },
+  &instr{
+    name:     "DEC",
+    opcode:   0xde,
+    size:     3,
+    cycles:   7,
+    addrMode: AddrModeAbsX,
+    fn:       dec,
+  },
+  &instr{
+    name:     "DEX",
+    opcode:   0xca,
+    size:     1,
+    cycles:   2,
+    addrMode: AddrModeImplied,
+    fn:       dex,
+  },
+  &instr{
+    name:     "DEY",
+    opcode:   0x88,
+    size:     1,
+    cycles:   2,
+    addrMode: AddrModeImplied,
+    fn:       dey,
+  },
 }
 
 func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
@@ -427,15 +651,26 @@ func php(cpu *CPU, addrMode addressingMode) {
   cpu.Push8(cpu.regs.P)
 }
 
-// Branch if positive
-func bpl(cpu *CPU, addrMode addressingMode) {
-  addr := calculateAddr(cpu, addrMode)
-  cpu.regs.PC = addr
+// Pull processor state
+func plp(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.P = cpu.Pop8()
 }
 
 // Clear carry
 func clc(cpu *CPU, addrMode addressingMode) {
   cpu.resetFlag(StatusFlagC)
+}
+
+func cld(cpu *CPU, addrMode addressingMode) {
+  cpu.resetFlag(StatusFlagD)
+}
+
+func cli(cpu *CPU, addrMode addressingMode) {
+  cpu.resetFlag(StatusFlagI)
+}
+
+func clv(cpu *CPU, addrMode addressingMode) {
+  cpu.resetFlag(StatusFlagV)
 }
 
 // Jump to subroutine
@@ -494,4 +729,89 @@ func ror(cpu *CPU, addrMode addressingMode) {
     addr := calculateAddr(cpu, addrMode)
     cpu.mem.Write8(addr, inner(cpu.mem.Read8(addr)))
   }
+}
+
+// Branch if negative
+func bmi(cpu *CPU, addrMode addressingMode) {
+  if cpu.getFlag(StatusFlagN) {
+    cpu.regs.PC = calculateAddr(cpu, addrMode)
+  }
+}
+
+// Branch if not equal
+func bne(cpu *CPU, addrMode addressingMode) {
+  if !cpu.getFlag(StatusFlagZ) {
+    cpu.regs.PC = calculateAddr(cpu, addrMode)
+  }
+}
+
+// Branch if positive
+func bpl(cpu *CPU, addrMode addressingMode) {
+  if !cpu.getFlag(StatusFlagN) {
+    cpu.regs.PC = calculateAddr(cpu, addrMode)
+  }
+}
+
+// Branch if overflow clear
+func bvc(cpu *CPU, addrMode addressingMode) {
+  if !cpu.getFlag(StatusFlagV) {
+    cpu.regs.PC = calculateAddr(cpu, addrMode)
+  }
+}
+
+// Branch if overflow set
+func bvs(cpu *CPU, addrMode addressingMode) {
+  if cpu.getFlag(StatusFlagV) {
+    cpu.regs.PC = calculateAddr(cpu, addrMode)
+  }
+}
+
+func _comp(v uint8, cpu *CPU) {
+  cpu.setOrReset(StatusFlagZ, v == 0)
+  cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
+  cpu.setOrReset(StatusFlagC, v >= 0)
+}
+
+// Compare with A
+func cmp(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  m := cpu.mem.Read8(addr)
+  v := cpu.regs.A - m
+  _comp(v, cpu)
+}
+
+// Compare with X
+func cpx(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  m := cpu.mem.Read8(addr)
+  v := cpu.regs.X - m
+  _comp(v, cpu)
+}
+
+// Compare with Y
+func cpy(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  m := cpu.mem.Read8(addr)
+  v := cpu.regs.Y - m
+  _comp(v, cpu)
+}
+
+func dec(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  v := cpu.mem.Read8(addr) - 1
+  cpu.mem.Write8(addr, v)
+  cpu.setOrReset(StatusFlagZ, v == 0)
+  cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
+}
+
+func dex(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.X -= 1
+  cpu.setOrReset(StatusFlagZ, cpu.regs.X == 0)
+  cpu.setOrReset(StatusFlagN, cpu.regs.X >> 7 == 0x1)
+}
+
+func dey(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.Y -= 1
+  cpu.setOrReset(StatusFlagZ, cpu.regs.Y == 0)
+  cpu.setOrReset(StatusFlagN, cpu.regs.Y >> 7 == 0x1)
 }

@@ -211,3 +211,107 @@ func TestROR(t *testing.T) {
     t.Fatalf("Flag N should have not been set")
   }
 }
+
+func TestPHP(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.P = 0xab
+
+  php(cpu, AddrModeImplied)
+
+  if res := cpu.Pop8(); res != 0xab {
+    t.Fatalf("Pushed wrong value for P: %x", res)
+  }
+}
+
+func TestPLP(t *testing.T) {
+  cpu := makeCPU()
+  cpu.Push8(0xab)
+
+  plp(cpu, AddrModeImplied)
+
+  if res := cpu.regs.P; res != 0xab {
+    t.Fatalf("Popped wrong value for P: %x", res)
+  }
+}
+
+func TestBMI(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.PC = 0xaaaa
+  cpu.setFlag(StatusFlagN)
+
+  // -128 in two's complement
+  cpu.mem.Write8(0xaaab, 0x80)
+
+  expected := uint16(0xaaaa - 128 + 2)
+
+  bmi(cpu, AddrModeRelative)
+
+  if res := cpu.regs.PC; res != expected {
+    t.Fatalf("Popped wrong value for P: %x", res)
+  }
+}
+
+func TestBNE(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.PC = 0xaaaa
+  cpu.resetFlag(StatusFlagN)
+
+  // -128 in two's complement
+  cpu.mem.Write8(0xaaab, 0x80)
+
+  expected := uint16(0xaaaa - 128 + 2)
+
+  bne(cpu, AddrModeRelative)
+
+  if res := cpu.regs.PC; res != expected {
+    t.Fatalf("Popped wrong value for P: %x", res)
+  }
+}
+
+func TestCMP(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.A = 0xf0
+  cpu.regs.PC = 0x0004
+  cpu.mem.Write8(cpu.regs.PC + 1, 0x43)
+  cpu.mem.Write8(0x43, 0xa0)
+  cpu.regs.Y = 0x0a
+
+  cpu.mem.Write8(0xaa, 0xbb)
+
+  // Will compare 0xf0 with 0xbb
+  cmp(cpu, AddrModeIndirectY)
+
+  if cpu.getFlag(StatusFlagZ) {
+    t.Fatalf("Flag Z should not have been set")
+  }
+
+  // C = A >= m
+  if !cpu.getFlag(StatusFlagC) {
+    t.Fatalf("Flag C should have been set")
+  }
+
+  if cpu.getFlag(StatusFlagN) {
+    t.Fatalf("Flag N should not have been set")
+  }
+}
+
+func TestDEC(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.PC = 0x0004
+  cpu.mem.Write8(cpu.regs.PC + 1, 0x43)
+  cpu.mem.Write8(0x0043, 0xf0)
+
+  dec(cpu, AddrModeZeroPage)
+
+  if v := cpu.mem.Read8(0x0043); v != 0xef {
+    t.Fatalf("Value was not decremented: %x", v)
+  }
+
+  if !cpu.getFlag(StatusFlagN) {
+    t.Fatalf("Flag N should have been set")
+  }
+
+  if cpu.getFlag(StatusFlagZ) {
+    t.Fatalf("Flag Z should not have been set")
+  }
+}
