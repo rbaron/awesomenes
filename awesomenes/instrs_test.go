@@ -21,16 +21,18 @@ func TestBRK(t *testing.T) {
 
 func TestORA(t *testing.T) {
   cpu := makeCPU()
+  cpu.regs.PC = 0x0004
   cpu.mem.Write8(cpu.regs.PC + 1, 0xad)
   cpu.regs.A = 0x4a
-  cpu.regs.X = 0x01
+  cpu.regs.X = 0x02
 
-  // AddrModeXIndirect will read from mem[PC + 1] | X
-  cpu.mem.Write8(0xae, 0x8d)
+  // AddrModeXIndirect will read from (mem[PC + 1] + X) & 0xff
+  cpu.mem.Write8(0xaf, 0x8d)
+  cpu.mem.Write8(0x8d, 0xc9)
 
   ora(cpu, AddrModeXIndirect)
 
-  if cpu.regs.A != uint8(0x4a | 0x8d) {
+  if cpu.regs.A != uint8(0x4a | 0xc9) {
     t.Fatalf("Wrong value for reg A: %x", cpu.regs.A)
   }
   if cpu.regs.P & (0x1 << StatusFlagN) == 0 {
@@ -60,7 +62,6 @@ func TestASL(t *testing.T) {
 
 func TestBPL(t *testing.T) {
   cpu := makeCPU()
-
   cpu.regs.PC = 0x0004
 
   // 0xfa = signed -6
@@ -85,5 +86,128 @@ func TestBPL(t *testing.T) {
   // BPL instruct itself)
   if cpu.regs.PC != 0x000c {
     t.Fatalf("Wrong value for reg PC: %x", cpu.regs.PC)
+  }
+}
+
+func TestJSR(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.PC = 0x0004
+  cpu.mem.Write16(0x0005, 0xfffb)
+
+  jsr(cpu, AddrModeAbs)
+
+  if cpu.regs.PC != 0xfffb {
+    t.Fatalf("Unexpected jump to %x", cpu.regs.PC)
+  }
+
+  if p := cpu.Pop16(); p != 0x0003 {
+    t.Fatalf("Unexpected pop of %x", p)
+  }
+}
+
+func TestAND(t *testing.T) {
+  cpu := makeCPU()
+
+  // AddrModeXIndirect
+  cpu.regs.PC = 0x0004
+  cpu.regs.A = 0xff
+  cpu.regs.X = 0xfb
+
+  // Operand
+  cpu.mem.Write8(0x0005, 0x80)
+
+  // Actual address
+  cpu.mem.Write8((0x80 + 0xfb) & 0xff, 0xcc)
+
+  // Valur at address
+  cpu.mem.Write8(0xcc, 0xab)
+
+  and(cpu, AddrModeXIndirect)
+
+  if cpu.regs.A != 0xab {
+    t.Fatalf("Unexpected value of A %x", cpu.regs.A)
+  }
+
+  // AddrModeZeroX
+  cpu.regs.PC = 0x0004
+  cpu.regs.A = 0xf4
+  cpu.regs.X = 0xfb
+  cpu.mem.Write8(0x0005, 0x80)
+  cpu.mem.Write8((0x80 + 0xfb) & 0xff, 0xae)
+
+  and(cpu, AddrModeZeroX)
+
+  if cpu.regs.A != (0xae & 0xf4) {
+    t.Fatalf("Unexpected value of A %x", cpu.regs.A)
+  }
+}
+
+func TestBIT(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.PC = 0x0004
+  cpu.regs.A = 0xff
+  cpu.mem.Write8(0x0005, 0xab)
+  cpu.mem.Write8(0x00ab, 0xf0)
+
+  bit(cpu, AddrModeZeroPage)
+
+  if cpu.regs.A != 0xff {
+    t.Fatalf("Unexpected value of A %x", cpu.regs.A)
+  }
+
+  if cpu.getFlag(StatusFlagZ) {
+    t.Fatalf("And result should not be zero")
+  }
+
+  if !cpu.getFlag(StatusFlagV) {
+    t.Fatalf("Flag V shouldve been set")
+  }
+
+  if !cpu.getFlag(StatusFlagN) {
+    t.Fatalf("Flag N shouldve been set")
+  }
+}
+
+func TestROL(t *testing.T) {
+  cpu := makeCPU()
+
+  cpu.regs.PC = 0x0004
+  cpu.mem.Write16(0x0005, 0xdead)
+  cpu.regs.X = 0x02
+
+  cpu.mem.Write8(0xdeaf, 0xfe)
+
+  rol(cpu, AddrModeAbsX)
+
+  if res := cpu.mem.Read8(0xdeaf); res != 0xfd {
+    t.Fatalf("Value is not rotated left: %x", res)
+  }
+
+  if cpu.getFlag(StatusFlagZ) {
+    t.Fatalf("Result should not have been zero")
+  }
+
+  if !cpu.getFlag(StatusFlagN) {
+    t.Fatalf("Flag N shouldve been set")
+  }
+}
+
+func TestROR(t *testing.T) {
+  cpu := makeCPU()
+
+  cpu.regs.A = 0xf0
+
+  ror(cpu, AddrModeAccumulator)
+
+  if res := cpu.regs.A; res != 0x78 {
+    t.Fatalf("Value is not rotated left: %x", res)
+  }
+
+  if cpu.getFlag(StatusFlagZ) {
+    t.Fatalf("Result should not have been zero")
+  }
+
+  if cpu.getFlag(StatusFlagN) {
+    t.Fatalf("Flag N should have not been set")
   }
 }

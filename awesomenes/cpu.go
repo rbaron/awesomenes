@@ -58,8 +58,7 @@ func (c *CPU) Push16(v uint16) {
 
 func (c *CPU) Pop8() uint8 {
   c.regs.SP--
-  v := c.mem.Read8(c.stackPos())
-  return v
+  return c.mem.Read8(c.stackPos())
 }
 
 func (c *CPU) Pop16() uint16 {
@@ -70,6 +69,10 @@ func (c *CPU) Pop16() uint16 {
 
 func (c *CPU) stackPos() uint16 {
   return MemStackBase - uint16(c.regs.SP)
+}
+
+func (c *CPU) getFlag(flag uint8) bool {
+  return (c.regs.P & (0x1 << flag)) != 0
 }
 
 func (c *CPU) setFlag(flag uint8) {
