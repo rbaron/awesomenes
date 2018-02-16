@@ -43,6 +43,30 @@ func TestORA(t *testing.T) {
   }
 }
 
+func TestEOR(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.PC = 0x0004
+  cpu.mem.Write8(cpu.regs.PC + 1, 0xad)
+  cpu.regs.A = 0x4a
+  cpu.regs.X = 0x02
+
+  // AddrModeXIndirect will read from (mem[PC + 1] + X) & 0xff
+  cpu.mem.Write8(0xaf, 0x8d)
+  cpu.mem.Write8(0x8d, 0xc9)
+
+  eor(cpu, AddrModeXIndirect)
+
+  if cpu.regs.A != uint8(0x4a ^ 0xc9) {
+    t.Fatalf("Wrong value for reg A: %x", cpu.regs.A)
+  }
+  if cpu.regs.P & (0x1 << StatusFlagN) == 0 {
+    t.Fatalf("Flag N shouldve been set")
+  }
+  if cpu.regs.P & (0x1 << StatusFlagZ) != 0 {
+    t.Fatalf("Flag Z should not have been set")
+  }
+}
+
 func TestASL(t *testing.T) {
   cpu := makeCPU()
   cpu.regs.A = 0x8a

@@ -42,10 +42,10 @@ var instrs = []*instr {
   },
   &instr{
     name:     "ORA",
-    opcode:   0x01,
+    opcode:   0x09,
     size:     2,
-    cycles:   6,
-    addrMode: AddrModeXIndirect,
+    cycles:   2,
+    addrMode: AddrModeImmediate,
     fn:       ora,
   },
   &instr{
@@ -58,10 +58,10 @@ var instrs = []*instr {
   },
   &instr{
     name:     "ORA",
-    opcode:   0x09,
+    opcode:   0x15,
     size:     2,
-    cycles:   2,
-    addrMode: AddrModeImmediate,
+    cycles:   4,
+    addrMode: AddrModeZeroX,
     fn:       ora,
   },
   &instr{
@@ -74,18 +74,10 @@ var instrs = []*instr {
   },
   &instr{
     name:     "ORA",
-    opcode:   0x11,
-    size:     2,
-    cycles:   5,
-    addrMode: AddrModeIndirectY,
-    fn:       ora,
-  },
-  &instr{
-    name:     "ORA",
-    opcode:   0x15,
-    size:     2,
+    opcode:   0x1d,
+    size:     3,
     cycles:   4,
-    addrMode: AddrModeZeroX,
+    addrMode: AddrModeAbsX,
     fn:       ora,
   },
   &instr{
@@ -98,10 +90,18 @@ var instrs = []*instr {
   },
   &instr{
     name:     "ORA",
-    opcode:   0x1d,
-    size:     3,
-    cycles:   4,
-    addrMode: AddrModeAbsX,
+    opcode:   0x01,
+    size:     2,
+    cycles:   6,
+    addrMode: AddrModeXIndirect,
+    fn:       ora,
+  },
+  &instr{
+    name:     "ORA",
+    opcode:   0x11,
+    size:     2,
+    cycles:   5,
+    addrMode: AddrModeIndirectY,
     fn:       ora,
   },
   &instr{
@@ -560,6 +560,118 @@ var instrs = []*instr {
     addrMode: AddrModeImplied,
     fn:       dey,
   },
+  &instr{
+    name:     "INC",
+    opcode:   0xe6,
+    size:     2,
+    cycles:   5,
+    addrMode: AddrModeZeroPage,
+    fn:       inc,
+  },
+  &instr{
+    name:     "INC",
+    opcode:   0xf6,
+    size:     2,
+    cycles:   6,
+    addrMode: AddrModeZeroX,
+    fn:       inc,
+  },
+  &instr{
+    name:     "INC",
+    opcode:   0xee,
+    size:     3,
+    cycles:   6,
+    addrMode: AddrModeAbs,
+    fn:       inc,
+  },
+  &instr{
+    name:     "INC",
+    opcode:   0xfe,
+    size:     3,
+    cycles:   7,
+    addrMode: AddrModeAbsX,
+    fn:       inc,
+  },
+  &instr{
+    name:     "INX",
+    opcode:   0xe8,
+    size:     1,
+    cycles:   2,
+    addrMode: AddrModeImplied,
+    fn:       inx,
+  },
+  &instr{
+    name:     "INY",
+    opcode:   0xc8,
+    size:     1,
+    cycles:   2,
+    addrMode: AddrModeImplied,
+    fn:       iny,
+  },
+  &instr{
+    name:     "EOR",
+    opcode:   0x49,
+    size:     2,
+    cycles:   2,
+    addrMode: AddrModeImmediate,
+    fn:       eor,
+  },
+  &instr{
+    name:     "EOR",
+    opcode:   0x45,
+    size:     2,
+    cycles:   3,
+    addrMode: AddrModeZeroPage,
+    fn:       eor,
+  },
+  &instr{
+    name:     "EOR",
+    opcode:   0x55,
+    size:     2,
+    cycles:   4,
+    addrMode: AddrModeZeroX,
+    fn:       eor,
+  },
+  &instr{
+    name:     "EOR",
+    opcode:   0x4d,
+    size:     3,
+    cycles:   4,
+    addrMode: AddrModeAbs,
+    fn:       eor,
+  },
+  &instr{
+    name:     "EOR",
+    opcode:   0x5d,
+    size:     3,
+    cycles:   4,
+    addrMode: AddrModeAbsX,
+    fn:       eor,
+  },
+  &instr{
+    name:     "EOR",
+    opcode:   0x59,
+    size:     3,
+    cycles:   4,
+    addrMode: AddrModeAbsY,
+    fn:       eor,
+  },
+  &instr{
+    name:     "EOR",
+    opcode:   0x41,
+    size:     2,
+    cycles:   6,
+    addrMode: AddrModeXIndirect,
+    fn:       eor,
+  },
+  &instr{
+    name:     "EOR",
+    opcode:   0x51,
+    size:     2,
+    cycles:   5,
+    addrMode: AddrModeIndirectY,
+    fn:       eor,
+  },
 }
 
 func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
@@ -629,6 +741,13 @@ func ora(cpu *CPU, addrMode addressingMode) {
   cpu.setOrReset(StatusFlagZ, cpu.regs.A == 0)
 }
 
+func eor(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.regs.A = cpu.regs.A ^ cpu.mem.Read8(addr)
+  cpu.setOrReset(StatusFlagN, cpu.regs.A & 0x80 != 0)
+  cpu.setOrReset(StatusFlagZ, cpu.regs.A == 0)
+}
+
 // Arithmetic shift left
 func asl(cpu *CPU, addrMode addressingMode) {
   shiftL := func (v uint8) uint8 {
@@ -671,6 +790,12 @@ func cli(cpu *CPU, addrMode addressingMode) {
 
 func clv(cpu *CPU, addrMode addressingMode) {
   cpu.resetFlag(StatusFlagV)
+}
+
+// Jump
+func jmp(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.regs.PC = addr
 }
 
 // Jump to subroutine
@@ -814,4 +939,27 @@ func dey(cpu *CPU, addrMode addressingMode) {
   cpu.regs.Y -= 1
   cpu.setOrReset(StatusFlagZ, cpu.regs.Y == 0)
   cpu.setOrReset(StatusFlagN, cpu.regs.Y >> 7 == 0x1)
+}
+
+func inc(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  v := cpu.mem.Read8(addr) + 1
+  cpu.mem.Write8(addr, v)
+  cpu.setOrReset(StatusFlagZ, v == 0)
+  cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
+}
+
+func inx(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.X += 1
+  cpu.setOrReset(StatusFlagZ, cpu.regs.X == 0)
+  cpu.setOrReset(StatusFlagN, cpu.regs.X >> 7 == 0x1)
+}
+
+func iny(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.Y += 1
+  cpu.setOrReset(StatusFlagZ, cpu.regs.Y == 0)
+  cpu.setOrReset(StatusFlagN, cpu.regs.Y >> 7 == 0x1)
+}
+
+func lda(cpu *CPU, addrMode addressingMode) {
 }
