@@ -110,7 +110,7 @@ func asl(cpu *CPU, addrMode addressingMode) {
   shiftL := func (v uint8) uint8 {
     cpu.setOrReset(StatusFlagC, v & 0x80 != 0)
     v = v << 1
-    cpu.setOrReset(StatusFlagZ, v == 0)
+    setOrResetNZ(v, cpu)
     return v
   }
 
@@ -122,14 +122,82 @@ func asl(cpu *CPU, addrMode addressingMode) {
   }
 }
 
+// Logical shift right
+func lsr(cpu *CPU, addrMode addressingMode) {
+  shiftR := func (v uint8) uint8 {
+    cpu.setOrReset(StatusFlagC, v & 0x1 != 1)
+    v = v >> 1
+    setOrResetNZ(v, cpu)
+    return v
+  }
+
+  if addrMode == AddrModeAccumulator {
+    cpu.regs.A = shiftR(cpu.regs.A)
+  } else {
+    addr := calculateAddr(cpu, addrMode)
+    cpu.mem.Write8(addr, shiftR(cpu.mem.Read8(addr)))
+  }
+}
+
+// Add with carry
+func adc(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  m := cpu.mem.Read8(addr)
+
+  var v uint16
+  if cpu.getFlag(StatusFlagC) {
+    v = uint16(cpu.regs.A) + uint16(m)
+  } else {
+    v = uint16(cpu.regs.A) + uint16(m) - 1
+  }
+
+  cpu.setOrReset(StatusFlagC, v > 0xff)
+  cpu.setOrReset(StatusFlagZ, v == 0x00)
+  cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
+
+  isneg := func(n uint8) bool {
+    return (n >> 7) == 0x1
+  }
+  // http://sandbox.mc.edu/~bennet/cs110/tc/orules.html
+  var overflowed bool
+  if isneg(cpu.regs.A) && isneg(m) && !isneg(uint8(v & 0xff)) {
+    overflowed = true
+  } else if !isneg(cpu.regs.A) && !isneg(m) && isneg(uint8(v & 0xff)) {
+    overflowed = true
+  } else {
+    overflowed = false
+  }
+
+  cpu.setOrReset(StatusFlagV, overflowed)
+
+  //log.Fatalf("m: %v; A: %v", int(m), int(cpu.regs.A))
+  cpu.regs.A = uint8(v & 0xff)
+}
+
+// Subtract with carry
+func sbc(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  m := cpu.mem.Read8(addr)
+  cpu.mem.Write8(addr, uint8((256 - uint16(m)) & 0xff))
+  adc(cpu, addrMode)
+}
+
 // Push processor state
 func php(cpu *CPU, addrMode addressingMode) {
   cpu.Push8(cpu.regs.P)
 }
 
+func pha(cpu *CPU, addrMode addressingMode) {
+  cpu.Push8(cpu.regs.A)
+}
+
 // Pull processor state
 func plp(cpu *CPU, addrMode addressingMode) {
   cpu.regs.P = cpu.Pop8()
+}
+
+func pla(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.A = cpu.Pop8()
 }
 
 // Clear carry
@@ -160,6 +228,17 @@ func jsr(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   cpu.Push16(cpu.regs.PC - 1)
   cpu.regs.PC = addr
+}
+
+// Return from interrupt
+func rti(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.P = cpu.Pop8()
+  cpu.regs.PC = cpu.Pop16()
+}
+
+// Return from subroutine
+func rts(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.PC = cpu.Pop16() + 1
 }
 
 func and(cpu *CPU, addrMode addressingMode) {
@@ -213,6 +292,18 @@ func ror(cpu *CPU, addrMode addressingMode) {
   }
 }
 
+func bcc(cpu *CPU, addrMode addressingMode) {
+  if !cpu.getFlag(StatusFlagC) {
+    cpu.regs.PC = calculateAddr(cpu, addrMode)
+  }
+}
+
+func bcs(cpu *CPU, addrMode addressingMode) {
+  if cpu.getFlag(StatusFlagC) {
+    cpu.regs.PC = calculateAddr(cpu, addrMode)
+  }
+}
+
 // Branch if negative
 func bmi(cpu *CPU, addrMode addressingMode) {
   if cpu.getFlag(StatusFlagN) {
@@ -220,6 +311,12 @@ func bmi(cpu *CPU, addrMode addressingMode) {
   }
 }
 
+// Branch if equal
+func beq(cpu *CPU, addrMode addressingMode) {
+  if !cpu.getFlag(StatusFlagZ) {
+    cpu.regs.PC = calculateAddr(cpu, addrMode)
+  }
+}
 // Branch if not equal
 func bne(cpu *CPU, addrMode addressingMode) {
   if !cpu.getFlag(StatusFlagZ) {
@@ -319,4 +416,87 @@ func iny(cpu *CPU, addrMode addressingMode) {
 }
 
 func lda(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.regs.A = cpu.mem.Read8(addr)
+  cpu.setOrReset(StatusFlagZ, cpu.regs.A == 0)
+  cpu.setOrReset(StatusFlagN, cpu.regs.A >> 7 == 0x1)
 }
+
+func sta(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.mem.Write8(addr, cpu.regs.A)
+}
+
+func ldx(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.regs.X = cpu.mem.Read8(addr)
+  cpu.setOrReset(StatusFlagZ, cpu.regs.X == 0)
+  cpu.setOrReset(StatusFlagN, cpu.regs.X >> 7 == 0x1)
+}
+
+func stx(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.mem.Write8(addr, cpu.regs.X)
+}
+
+func ldy(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.regs.Y = cpu.mem.Read8(addr)
+  cpu.setOrReset(StatusFlagZ, cpu.regs.Y == 0)
+  cpu.setOrReset(StatusFlagN, cpu.regs.Y >> 7 == 0x1)
+}
+
+func sty(cpu *CPU, addrMode addressingMode) {
+  addr := calculateAddr(cpu, addrMode)
+  cpu.mem.Write8(addr, cpu.regs.Y)
+}
+
+func nop(cpu *CPU, addrMode addressingMode) {
+}
+
+func sec(cpu *CPU, addrMode addressingMode) {
+  cpu.setFlag(StatusFlagC)
+}
+
+func sed(cpu *CPU, addrMode addressingMode) {
+  cpu.setFlag(StatusFlagD)
+}
+
+func sei(cpu *CPU, addrMode addressingMode) {
+  cpu.setFlag(StatusFlagI)
+}
+
+func setOrResetNZ(v uint8, cpu *CPU) {
+  cpu.setOrReset(StatusFlagZ, v == 0)
+  cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
+}
+
+func tax(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.X = cpu.regs.A
+  setOrResetNZ(cpu.regs.X, cpu)
+}
+
+func tay(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.Y = cpu.regs.A
+  setOrResetNZ(cpu.regs.Y, cpu)
+}
+
+func tsx(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.X = cpu.regs.SP
+  setOrResetNZ(cpu.regs.X, cpu)
+}
+
+func txa(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.A = cpu.regs.X
+  setOrResetNZ(cpu.regs.A, cpu)
+}
+
+func tya(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.A = cpu.regs.Y
+  setOrResetNZ(cpu.regs.A, cpu)
+}
+func txs(cpu *CPU, addrMode addressingMode) {
+  cpu.regs.SP = cpu.regs.X
+  setOrResetNZ(cpu.regs.X, cpu)
+}
+

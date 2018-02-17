@@ -1,6 +1,8 @@
 package awesomenes
 
 import (
+  "log"
+  "math"
   "testing"
 )
 
@@ -337,5 +339,100 @@ func TestDEC(t *testing.T) {
 
   if cpu.getFlag(StatusFlagZ) {
     t.Fatalf("Flag Z should not have been set")
+  }
+}
+
+func to_uint8(v int) uint8 {
+  if v < -128 {
+    log.Fatalf("Invalid value %x", v)
+  } else if v > 127 {
+    log.Fatalf("Invalid value %x", v)
+  } else if v < 0 {
+    return uint8(int(math.Pow(2, 8)) + v)
+  } else {
+    return uint8(v)
+  }
+  return 0
+}
+
+func TestADC(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.PC = 0x0004
+
+  type testCase struct {
+    A        uint8
+    m        uint8
+    result   uint8
+    carry    bool
+    overflow bool
+  }
+
+  cases := []testCase {
+    {A: to_uint8(-39), m: to_uint8(92), result: to_uint8(53), carry: true, overflow: false},
+    {A: to_uint8(-19), m: to_uint8(-7), result: to_uint8(-26), carry: true, overflow: false},
+    {A: to_uint8( 44), m: to_uint8(45), result: to_uint8(89), carry: false, overflow: false},
+    {A: to_uint8( 104), m: to_uint8(45), result: to_uint8(149 - 256), carry: false, overflow: true},
+    {A: to_uint8(-103), m: to_uint8(-69), result: to_uint8(256 - 172), carry: true, overflow: true},
+  }
+
+  for _, test := range(cases) {
+    cpu.setFlag(StatusFlagC)
+    cpu.regs.A = test.A
+    cpu.mem.Write8(cpu.regs.PC + 1, test.m)
+
+    adc(cpu, AddrModeImmediate)
+
+    if v := cpu.regs.A; v != test.result {
+      t.Fatalf("Wrong result: %x", v)
+    }
+
+    if cpu.getFlag(StatusFlagC) != test.carry  {
+      t.Fatalf("Wrong carry")
+    }
+
+    if cpu.getFlag(StatusFlagV) != test.overflow {
+      t.Fatalf("Wrong overflow")
+    }
+  }
+}
+
+func TestSBC(t *testing.T) {
+  cpu := makeCPU()
+  cpu.regs.PC = 0x0004
+
+  type testCase struct {
+    A        uint8
+    m        uint8
+    result   uint8
+    carry    bool
+    overflow bool
+  }
+
+  cases := []testCase {
+    {A: to_uint8(92), m: to_uint8(39), result: to_uint8(53), carry: true, overflow: false},
+    {A: to_uint8(-19), m: to_uint8(7), result: to_uint8(-26), carry: true, overflow: false},
+    {A: to_uint8( 44), m: to_uint8(-45), result: to_uint8(89), carry: false, overflow: false},
+    {A: to_uint8( 104), m: to_uint8(-45), result: to_uint8(149 - 256), carry: false, overflow: true},
+    {A: to_uint8(-103), m: to_uint8(69), result: to_uint8(256 - 172), carry: true, overflow: true},
+  }
+
+  for _, test := range(cases) {
+    cpu.setFlag(StatusFlagC)
+    cpu.regs.A = test.A
+    cpu.mem.Write8(cpu.regs.PC + 1, test.m)
+
+    sbc(cpu, AddrModeImmediate)
+
+    if v := cpu.regs.A; v != test.result {
+      t.Fatalf("Wrong result: %x", v)
+    }
+
+    if cpu.getFlag(StatusFlagC) != test.carry  {
+      t.Fatalf("Wrong carry")
+    }
+
+    if cpu.getFlag(StatusFlagV) != test.overflow {
+      t.Fatalf("Wrong overflow")
+    }
   }
 }
