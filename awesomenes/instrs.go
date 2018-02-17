@@ -6,7 +6,6 @@ import (
 
 type instr struct {
   name     string
-  opcode   uint8
   size     uint8
   cycles   uint8
   addrMode addressingMode

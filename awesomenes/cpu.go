@@ -42,6 +42,9 @@ func makeCPU() *CPU {
   }
 }
 
+func (c *CPU) Exec() {
+}
+
 func (c *CPU) String() string {
   return fmt.Sprintf("<CPU Regs: %v>", c.regs)
 }
