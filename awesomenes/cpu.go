@@ -29,20 +29,23 @@ type registers struct {
 
 type CPU struct {
   regs *registers
-  mem  Memory
+  mem  AddrSpace
 }
 
-func makeCPU() *CPU {
+func makeCPU(addrSpace AddrSpace) *CPU {
   return &CPU{
     // Top of the stack
     regs:  &registers{
       SP: 0x0,
     },
-    mem: make(Memory, 0x10000),
+    mem: addrSpace,
   }
 }
 
-func (c *CPU) Exec() {
+func (cpu *CPU) Exec(rom *Rom) {
+  opcode := cpu.mem.Read8(cpu.regs.PC)
+  instr := instrTable[opcode]
+  fmt.Println("Hello", instr)
 }
 
 func (c *CPU) String() string {

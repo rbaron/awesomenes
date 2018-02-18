@@ -1,7 +1,7 @@
 package awesomenes
 
 
-var instrs = map[uint8]*instr {
+var instrTable = map[uint8]*instr {
   0x69: &instr{ name: "ADC", size: 2, cycles: 2, fn: adc, addrMode: AddrModeImmediate, },
   0x65: &instr{ name: "ADC", size: 2, cycles: 3, fn: adc, addrMode: AddrModeZeroPage, },
   0x75: &instr{ name: "ADC", size: 2, cycles: 4, fn: adc, addrMode: AddrModeZeroX, },

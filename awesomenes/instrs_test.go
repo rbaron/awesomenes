@@ -7,7 +7,7 @@ import (
 )
 
 func TestBRK(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.mem.Write8(0xfffe, 0xad)
   cpu.mem.Write8(0xffff, 0xde)
 
@@ -22,7 +22,7 @@ func TestBRK(t *testing.T) {
 }
 
 func TestORA(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0x0004
   cpu.mem.Write8(cpu.regs.PC + 1, 0xad)
   cpu.regs.A = 0x4a
@@ -46,7 +46,7 @@ func TestORA(t *testing.T) {
 }
 
 func TestEOR(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0x0004
   cpu.mem.Write8(cpu.regs.PC + 1, 0xad)
   cpu.regs.A = 0x4a
@@ -70,7 +70,7 @@ func TestEOR(t *testing.T) {
 }
 
 func TestASL(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.A = 0x8a
 
   asl(cpu, AddrModeAccumulator)
@@ -87,7 +87,7 @@ func TestASL(t *testing.T) {
 }
 
 func TestBPL(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0x0004
 
   // 0xfa = signed -6
@@ -116,7 +116,7 @@ func TestBPL(t *testing.T) {
 }
 
 func TestJSR(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0x0004
   cpu.mem.Write16(0x0005, 0xfffb)
 
@@ -132,7 +132,7 @@ func TestJSR(t *testing.T) {
 }
 
 func TestAND(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
 
   // AddrModeXIndirect
   cpu.regs.PC = 0x0004
@@ -169,7 +169,7 @@ func TestAND(t *testing.T) {
 }
 
 func TestBIT(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0x0004
   cpu.regs.A = 0xff
   cpu.mem.Write8(0x0005, 0xab)
@@ -195,7 +195,7 @@ func TestBIT(t *testing.T) {
 }
 
 func TestROL(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
 
   cpu.regs.PC = 0x0004
   cpu.mem.Write16(0x0005, 0xdead)
@@ -219,7 +219,7 @@ func TestROL(t *testing.T) {
 }
 
 func TestROR(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
 
   cpu.regs.A = 0xf0
 
@@ -239,7 +239,7 @@ func TestROR(t *testing.T) {
 }
 
 func TestPHP(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.P = 0xab
 
   php(cpu, AddrModeImplied)
@@ -250,7 +250,7 @@ func TestPHP(t *testing.T) {
 }
 
 func TestPLP(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.Push8(0xab)
 
   plp(cpu, AddrModeImplied)
@@ -261,7 +261,7 @@ func TestPLP(t *testing.T) {
 }
 
 func TestBMI(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0xaaaa
   cpu.setFlag(StatusFlagN)
 
@@ -278,7 +278,7 @@ func TestBMI(t *testing.T) {
 }
 
 func TestBNE(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0xaaaa
   cpu.resetFlag(StatusFlagN)
 
@@ -295,7 +295,7 @@ func TestBNE(t *testing.T) {
 }
 
 func TestCMP(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.A = 0xf0
   cpu.regs.PC = 0x0004
   cpu.mem.Write8(cpu.regs.PC + 1, 0x43)
@@ -322,7 +322,7 @@ func TestCMP(t *testing.T) {
 }
 
 func TestDEC(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0x0004
   cpu.mem.Write8(cpu.regs.PC + 1, 0x43)
   cpu.mem.Write8(0x0043, 0xf0)
@@ -356,7 +356,7 @@ func to_uint8(v int) uint8 {
 }
 
 func TestADC(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0x0004
 
   type testCase struct {
@@ -397,7 +397,7 @@ func TestADC(t *testing.T) {
 }
 
 func TestSBC(t *testing.T) {
-  cpu := makeCPU()
+  cpu := makeTestCPU()
   cpu.regs.PC = 0x0004
 
   type testCase struct {
