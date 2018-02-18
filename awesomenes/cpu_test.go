@@ -28,7 +28,7 @@ func (as *testCPUAddrSpace) Write16(addr uint16, v uint16) {
 }
 
 func makeTestCPU() *CPU {
-  return makeCPU(
+  return MakeCPU(
     &testCPUAddrSpace{
       RAM: make(Memory, 0x10000),
     },

@@ -28,7 +28,7 @@ type CPUAddrSpace struct {
   // http://tuxnes.sourceforge.net/nesmapper.txt
 }
 
-func makeCPUAddrSpace(rom *Rom) *CPUAddrSpace {
+func MakeCPUAddrSpace(rom *Rom) *CPUAddrSpace {
   return &CPUAddrSpace{
     RAM:    make(Memory, 0x800),
     ROM:    rom,
@@ -37,6 +37,7 @@ func makeCPUAddrSpace(rom *Rom) *CPUAddrSpace {
 }
 
 //http://wiki.nesdev.com/w/index.php/CPU_memory_map
+//https://wiki.nesdev.com/w/index.php/NROM (Hard coded mapper 0 for now)
 func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 
   switch {
@@ -47,6 +48,15 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
     // PPU registers
     case addr < 0x4000:
       return as.PPU.Read8(0x2000 + addr % 8)
+
+    // ROM SRAM mirrorred every 0x800 bytes
+    case addr > 0x6000 && addr < 0x8000:
+      return as.ROM.SRAM.Read8((addr - 0x6000) % 0x800)
+
+    // ROM PRG banks
+    case addr > 0x8000:
+      // SRAM mirrorred every 0x800 bytes
+      return as.ROM.ROM.Read8(addr - 0x8000)
 
     default:
       log.Printf("Unhandled read from CPU mem space at %x", addr)
@@ -64,6 +74,10 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
     // PPU registers
     case addr < 0x4000:
       as.PPU.Write8(0x2000 + addr % 8, v)
+
+    // ROM SRAM mirrorred every 0x800 bytes
+    case addr > 0x6000 && addr < 0x8000:
+      as.ROM.SRAM.Write8((addr - 0x6000) % 0x800, v)
 
     default:
       log.Printf("Unhandled write to CPU mem space at %x", addr)

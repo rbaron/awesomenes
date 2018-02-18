@@ -2,6 +2,7 @@ package awesomenes
 
 import (
   "fmt"
+  "log"
 )
 
 const (
@@ -32,7 +33,7 @@ type CPU struct {
   mem  AddrSpace
 }
 
-func makeCPU(addrSpace AddrSpace) *CPU {
+func MakeCPU(addrSpace AddrSpace) *CPU {
   return &CPU{
     // Top of the stack
     regs:  &registers{
@@ -42,10 +43,23 @@ func makeCPU(addrSpace AddrSpace) *CPU {
   }
 }
 
-func (cpu *CPU) Exec(rom *Rom) {
-  opcode := cpu.mem.Read8(cpu.regs.PC)
-  instr := instrTable[opcode]
-  fmt.Println("Hello", instr)
+func (cpu *CPU) PowerUp() {
+  cpu.regs.PC = cpu.mem.Read16(0xfffc)
+}
+
+func (cpu *CPU) Run() {
+  for {
+    opcode := cpu.mem.Read8(cpu.regs.PC)
+    instr, ok := instrTable[opcode]
+
+    if !ok {
+      log.Fatalf("Unsupported opcode: %x", opcode)
+    }
+
+    fmt.Printf("Running PC %x; OPCODE %x\n", cpu.regs.PC, opcode)
+    instr.fn(cpu, instr.addrMode)
+    cpu.regs.PC += uint16(instr.size)
+  }
 }
 
 func (c *CPU) String() string {

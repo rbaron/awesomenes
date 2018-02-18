@@ -7,11 +7,13 @@ import (
 //http://fms.komkon.org/EMUL8/NES.html
 type Rom struct {
   header    *RomHeader
-  rom       []uint8
-  vrom      []uint8
+  ROM       Memory
+  VROM      Memory
+  SRAM      Memory
 }
 
 type RomHeader struct {
+  mapperN    uint8
   // 16kB each
   nROMBanks  uint8
   // 8kB each
@@ -26,14 +28,26 @@ func ReadROM(path string) *Rom {
   }
 
   header := &RomHeader{
+    mapperN:   (data[6] >> 4) | (data[7] & 0xf0),
     nROMBanks:  data[4],
     nVROMBanks: data[5],
   }
 
+  if header.mapperN != 0 {
+    panic("Only mapper type 0 is supported so far: " + string(header.mapperN));
+  }
+
+  if header.nROMBanks != 2 {
+    panic("Only 2 rom banks supported")
+  }
+
   rom := &Rom{
     header: header,
-    rom:    data[16:(int(header.nROMBanks)*0x4000)],
+    ROM:    data[16:(16 + (int(header.nROMBanks) * 0x4000))],
     //vrom:   data[]
+
+    // Always 2kB of RAM for now
+    SRAM:   make(Memory, 0x800),
   }
 
   return rom
