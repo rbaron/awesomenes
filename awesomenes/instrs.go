@@ -50,12 +50,14 @@ func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
       return cpu.regs.PC + 1
 
     case AddrModeRelative:
-      // Treat operand as signed int8. Sure it uses two's complement?
+      // Treat operand as signed int8 encoded as two's complement
       m := cpu.mem.Read8(cpu.regs.PC + 1)
       if (m >> 7) == 0x1 {
         return cpu.regs.PC + 2 + uint16(m) - 0x100
+        //return cpu.regs.PC +  uint16(m) - 0x100
       } else {
         return cpu.regs.PC + 2 + uint16(m)
+        //return cpu.regs.PC + uint16(m)
       }
 
     case AddrModeXIndirect:

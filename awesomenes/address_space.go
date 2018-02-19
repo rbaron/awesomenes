@@ -32,6 +32,8 @@ func MakeCPUAddrSpace(rom *Rom) *CPUAddrSpace {
   return &CPUAddrSpace{
     RAM:    make(Memory, 0x800),
     ROM:    rom,
+    // Dummy memory for now
+    PPU:    make(Memory, 0x2000),
     Logger: make(Memory, 0x1000),
   }
 }
@@ -47,14 +49,15 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 
     // PPU registers
     case addr < 0x4000:
-      return as.PPU.Read8(0x2000 + addr % 8)
+      //return as.PPU.Read8(0x2000 + addr % 8)
+      return as.PPU.Read8(addr % 8)
 
     // ROM SRAM mirrorred every 0x800 bytes
-    case addr > 0x6000 && addr < 0x8000:
+    case addr >= 0x6000 && addr < 0x8000:
       return as.ROM.SRAM.Read8((addr - 0x6000) % 0x800)
 
     // ROM PRG banks
-    case addr > 0x8000:
+    case addr >= 0x8000:
       // SRAM mirrorred every 0x800 bytes
       return as.ROM.ROM.Read8(addr - 0x8000)
 
@@ -73,7 +76,8 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
 
     // PPU registers
     case addr < 0x4000:
-      as.PPU.Write8(0x2000 + addr % 8, v)
+      //as.PPU.Write8(0x2000 + addr % 8, v)
+      as.PPU.Write8(addr % 8, v)
 
     // ROM SRAM mirrorred every 0x800 bytes
     case addr > 0x6000 && addr < 0x8000:

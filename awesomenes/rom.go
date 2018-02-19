@@ -18,6 +18,8 @@ type RomHeader struct {
   nROMBanks  uint8
   // 8kB each
   nVROMBanks uint8
+
+  hasTrainer bool
 }
 
 func ReadROM(path string) *Rom {
@@ -28,9 +30,10 @@ func ReadROM(path string) *Rom {
   }
 
   header := &RomHeader{
-    mapperN:   (data[6] >> 4) | (data[7] & 0xf0),
+    mapperN:    (data[6] >> 4) | (data[7] & 0xf0),
     nROMBanks:  data[4],
     nVROMBanks: data[5],
+    hasTrainer: (data[6] & (0x1 << 2)) > 0,
   }
 
   if header.mapperN != 0 {
@@ -41,14 +44,26 @@ func ReadROM(path string) *Rom {
     panic("Only 2 rom banks supported")
   }
 
+  var (
+    romBeginningAddr uint16 = 16
+    romEndAddr       uint16 = 16 + uint16(header.nROMBanks) * 0x4000
+  )
+
+  if header.hasTrainer {
+    romBeginningAddr += 512
+    romEndAddr       += 512
+  }
+
   rom := &Rom{
     header: header,
-    ROM:    data[16:(16 + (int(header.nROMBanks) * 0x4000))],
+    ROM:    data[romBeginningAddr:romEndAddr],
     //vrom:   data[]
 
     // Always 2kB of RAM for now
     SRAM:   make(Memory, 0x800),
   }
+
+  rom.ROM.Dump(0, 256)
 
   return rom
 }
