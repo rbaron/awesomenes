@@ -50,25 +50,25 @@ func (cpu *CPU) PowerUp() {
   cpu.regs.P = 0x24
 }
 
-func (cpu *CPU) Run() {
-  for {
-    fmt.Printf("%v", cpu)
+func (cpu *CPU) Run() int {
+  fmt.Printf("%v", cpu)
 
-    pcBkp := cpu.regs.PC
+  pcBkp := cpu.regs.PC
 
-    opcode := cpu.mem.Read8(cpu.regs.PC)
-    instr, ok := instrTable[opcode]
+  opcode := cpu.mem.Read8(cpu.regs.PC)
+  instr, ok := instrTable[opcode]
 
-    if !ok {
-      log.Fatalf("Unsupported opcode: %x", opcode)
-    }
-
-    instr.fn(cpu, instr.addrMode)
-
-    if cpu.regs.PC == pcBkp {
-      cpu.regs.PC += uint16(instr.size)
-    }
+  if !ok {
+    log.Fatalf("Unsupported opcode: %x", opcode)
   }
+
+  instr.fn(cpu, instr.addrMode)
+
+  if cpu.regs.PC == pcBkp {
+    cpu.regs.PC += uint16(instr.size)
+  }
+
+  return int(instr.cycles)
 }
 
 // Same format as the awesome github.com/fogleman/nes for debugging

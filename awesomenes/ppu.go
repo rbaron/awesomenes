@@ -164,6 +164,10 @@ func MakePPU(chrROM Memory) *PPU {
   }
 }
 
+func (ppu *PPU) Run() int {
+  return 10
+}
+
 //OAMDATA
 func (ppu *PPU) WriteOAMData(v uint8) {
   ppu.OAMData[ppu.OAMADDR] = v
@@ -200,7 +204,7 @@ func (ppu *PPU) Write8 (addr uint16, v uint8) {
       ppu.NametableData.Write8(getMirroedAddr(addr), v)
 
     case addr >= 0x3f00 && addr < 0x4000:
-      ppu.PaletteData.Write8(addr, v)
+      ppu.PaletteData.Write8(addr % 0x20, v)
 
     default:
       log.Fatalf("Invalid write to PPU at %x", addr)
@@ -217,7 +221,7 @@ func (ppu *PPU) Read8(addr uint16) uint8 {
       return ppu.NametableData.Read8(getMirroedAddr(addr))
 
     case addr >= 0x3f00 && addr < 0x4000:
-      return ppu.PaletteData.Read8(addr)
+      return ppu.PaletteData.Read8(addr % 0x20)
 
     default:
       log.Fatalf("Invalid read from PPU at %x", addr)
@@ -227,6 +231,5 @@ func (ppu *PPU) Read8(addr uint16) uint8 {
 
 // Hard coded vertical mirror for now
 func getMirroedAddr(addr uint16) uint16 {
-  v := (addr - 0x2000) % 0x800
-  return 0x2000 + v
+  return addr % 0x800
 }
