@@ -1,6 +1,6 @@
 package awesomenes
 
-//import "log"
+import "log"
 
 func addrSetter(v uint8, bitN uint8, ifNotSet uint16, ifSet uint16) uint16 {
   if v & (0x1 << bitN) == 0 { return ifNotSet } else { return ifSet }
@@ -140,19 +140,27 @@ type PPU struct {
   ADDR    *PPUADDR
 
   // This is usually mapped to be the chartridge ram!
-  // On mapper 0
-  VRAM    Memory
+  // On mapper 0, accessing 0-0x2000 on the PPU actually
+  // accesses the cartridge's CHR-RAM/ROM
+  //This is the "pattern table"
+  PatternTableData Memory
+  NametableData    Memory
+  PaletteData      Memory
+
 
   OAMADDR uint8
   OAMData [256]uint8
 }
 
-func MakePPU() *PPU {
+func MakePPU(chrROM Memory) *PPU {
   return &PPU{
     CTRL:   &PPUCTRL{},
     MASK:   &PPUMASK{},
     STATUS: &PPUSTATUS{},
-    VRAM: make(Memory, 0x4000),
+
+    PatternTableData: chrROM,
+    NametableData:    make(Memory, 0x0800),
+    PaletteData:      make(Memory, 0x0020),
   }
 }
 
@@ -168,16 +176,57 @@ func (ppu *PPU) ReadOAMData() uint8 {
 
 //PPUDATA
 func (ppu *PPU) WriteData(v uint8) {
-  ppu.VRAM[ppu.ADDR.addr] = v
+  ppu.Write8(ppu.ADDR.addr, v)
   ppu.ADDR.addr += ppu.CTRL.VRAMReadIncrement
 }
 
 func (ppu *PPU) ReadData() uint8 {
-  val := ppu.VRAM[ppu.ADDR.addr]
+  val := ppu.Read8(ppu.ADDR.addr)
   ppu.ADDR.addr += ppu.CTRL.VRAMReadIncrement
   return val
 }
 
 func (ppu *PPU) OMADMA(data []uint8) {
   copy(ppu.OAMData[:], data)
+}
+
+func (ppu *PPU) Write8 (addr uint16, v uint8) {
+  switch {
+    // Pattern tables - for now hard mapped to CHRROM
+    case addr >= 0x0000 && addr < 0x2000:
+      ppu.PatternTableData.Write8(addr, v)
+
+    case addr >= 0x2000 && addr < 0x3f00:
+      ppu.NametableData.Write8(getMirroedAddr(addr), v)
+
+    case addr >= 0x3f00 && addr < 0x4000:
+      ppu.PaletteData.Write8(addr, v)
+
+    default:
+      log.Fatalf("Invalid write to PPU at %x", addr)
+  }
+}
+
+func (ppu *PPU) Read8(addr uint16) uint8 {
+  switch {
+    // Pattern tables - for now hard mapped to CHRROM
+    case (addr >= 0x0000 && addr < 0x2000):
+      return ppu.PatternTableData.Read8(addr)
+
+    case addr >= 0x2000 && addr < 0x3f00:
+      return ppu.NametableData.Read8(getMirroedAddr(addr))
+
+    case addr >= 0x3f00 && addr < 0x4000:
+      return ppu.PaletteData.Read8(addr)
+
+    default:
+      log.Fatalf("Invalid read from PPU at %x", addr)
+      return 0
+  }
+}
+
+// Hard coded vertical mirror for now
+func getMirroedAddr(addr uint16) uint16 {
+  v := (addr - 0x2000) % 0x800
+  return 0x2000 + v
 }

@@ -63,14 +63,14 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
           return 0
       }
 
-    // ROM SRAM mirrorred every 0x800 bytes
+    // PRGRAM mirrorred every 0x800 bytes
     case addr >= 0x6000 && addr < 0x8000:
-      return as.ROM.SRAM.Read8((addr - 0x6000) % 0x800)
+      return as.ROM.PRGRAM.Read8((addr - 0x6000) % 0x800)
 
     // ROM PRG banks
     case addr >= 0x8000:
       // SRAM mirrorred every 0x800 bytes
-      return as.ROM.ROM.Read8(addr - 0x8000)
+      return as.ROM.PRGROM.Read8(addr - 0x8000)
 
     default:
       log.Fatalf("Invalid read from CPU mem space at %x", addr)
@@ -123,9 +123,10 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
       }
       as.PPU.OMADMA(data)
 
-    // ROM SRAM mirrorred every 0x800 bytes
+    // PRGRAM mirrorred every 0x800 bytes
+    // No CHR RAM for now
     case addr >= 0x6000 && addr < 0x8000:
-      as.ROM.SRAM.Write8((addr - 0x6000) % 0x800, v)
+      as.ROM.PRGRAM.Write8((addr - 0x6000) % 0x800, v)
 
     default:
       log.Fatalf("Invalid write to CPU mem space at %x", addr)

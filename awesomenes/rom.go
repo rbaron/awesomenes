@@ -6,20 +6,22 @@ import (
 
 //http://fms.komkon.org/EMUL8/NES.html
 type Rom struct {
-  header    *RomHeader
-  ROM       Memory
-  VROM      Memory
-  SRAM      Memory
+  Header    *RomHeader
+  PRGROM    Memory
+  CHRROM    Memory
+  PRGRAM    Memory
 }
 
 type RomHeader struct {
-  mapperN    uint8
+  MapperN        uint8
   // 16kB each
-  nROMBanks  uint8
+  NPRGROMBanks   uint8
   // 8kB each
-  nVROMBanks uint8
+  NCHRROMBanks   uint8
 
-  hasTrainer bool
+  HasTrainer     bool
+
+  VerticalMirror bool
 }
 
 func ReadROM(path string) *Rom {
@@ -30,40 +32,48 @@ func ReadROM(path string) *Rom {
   }
 
   header := &RomHeader{
-    mapperN:    (data[6] >> 4) | (data[7] & 0xf0),
-    nROMBanks:  data[4],
-    nVROMBanks: data[5],
-    hasTrainer: (data[6] & (0x1 << 2)) > 0,
+    MapperN:        (data[6] >> 4) | (data[7] & 0xf0),
+    NPRGROMBanks:   data[4],
+    NCHRROMBanks:   data[5],
+    HasTrainer:     (data[6] & (0x1 << 2)) > 0,
+    VerticalMirror: data[6] & 0x1 == 0x1,
   }
 
-  if header.mapperN != 0 {
-    panic("Only mapper type 0 is supported so far: " + string(header.mapperN));
+  if header.MapperN != 0 {
+    panic("Only mapper type 0 is supported so far: " + string(header.MapperN));
   }
 
-  if header.nROMBanks != 2 {
-    panic("Only 2 rom banks supported")
+  if header.NPRGROMBanks != 2 {
+    panic("Only 2 prg rom banks supported")
+  }
+
+  if header.NCHRROMBanks != 1 {
+    panic("Only 1 chr rom banks supported")
   }
 
   var (
-    romBeginningAddr uint16 = 16
-    romEndAddr       uint16 = 16 + uint16(header.nROMBanks) * 0x4000
+    prgBeginning uint16 = 16
+    prgEnd       uint16 = 16 + uint16(header.NPRGROMBanks) * 0x4000
   )
 
-  if header.hasTrainer {
-    romBeginningAddr += 512
-    romEndAddr       += 512
+  if header.HasTrainer {
+    prgBeginning += 512
+    prgEnd       += 512
   }
+
+  var (
+    chrBeginning uint16 = prgEnd
+    chrEnd       uint16 = prgEnd + uint16(header.NCHRROMBanks) * 0x2000
+  )
 
   rom := &Rom{
-    header: header,
-    ROM:    data[romBeginningAddr:romEndAddr],
-    //vrom:   data[]
-
-    // Always 2kB of RAM for now
-    SRAM:   make(Memory, 0x800),
+    Header: header,
+    PRGROM: data[prgBeginning:prgEnd],
+    CHRROM: data[chrBeginning:chrEnd],
+    PRGRAM: make(Memory, 0x2000),
   }
 
-  rom.ROM.Dump(0, 256)
+  //rom.ROM.Dump(0, 256)
 
   return rom
 }
