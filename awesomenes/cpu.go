@@ -32,6 +32,9 @@ type registers struct {
 type CPU struct {
   regs *registers
   mem  AddrSpace
+
+  // Has a non-maskable interrupt been requested?
+  nmiRequested bool
 }
 
 func MakeCPU(addrSpace AddrSpace) *CPU {
@@ -41,6 +44,7 @@ func MakeCPU(addrSpace AddrSpace) *CPU {
       SP: 0xfd,
     },
     mem: addrSpace,
+    nmiRequested: false,
   }
 }
 
@@ -52,6 +56,10 @@ func (cpu *CPU) PowerUp() {
 
 func (cpu *CPU) Run() int {
   fmt.Printf("%v", cpu)
+
+  if cpu.nmiRequested {
+    cpu.doNMI()
+  }
 
   pcBkp := cpu.regs.PC
 
@@ -69,6 +77,15 @@ func (cpu *CPU) Run() int {
   }
 
   return int(instr.cycles)
+}
+
+// Push PC, push P, jump to address in 0xfffa
+func (cpu *CPU) doNMI() {
+  cpu.Push16(cpu.regs.PC)
+  cpu.Push8(cpu.regs.P)
+  cpu.regs.PC = cpu.mem.Read16(0xfffa)
+  cpu.setFlag(StatusFlagI)
+  cpu.nmiRequested = false
 }
 
 // Same format as the awesome github.com/fogleman/nes for debugging

@@ -2,14 +2,31 @@ package awesomenes
 
 import "log"
 
-// 256 * 240 pixels
-// 262 scanlines rendered per frame
+/*
+  Screen resolution: 256 cols * 240 rows pixels
+  Scanlines: 262 per frame
+  Dots:      341 per scanline
+
+  Timings extracted from http://wiki.nesdev.com/w/images/d/d1/Ntsc_timing.png
+*/
 
 func (ppu *PPU) TickScanline() {
-  lineType := scanlineType(ppu.Scanline)
+  line := ppu.Scanline
+  lineType := scanlineType(line)
 
-  if lineType == SCANLINE_TYPE_PRE || lineType == SCANLINE_TYPE_VISIBLE {
+  // Pre-render scanline
+  if lineType == SCANLINE_TYPE_PRE {
+    ppu.tickPreScanline()
+
+  // Visible scanline
+  } else if lineType == SCANLINE_TYPE_VISIBLE {
     ppu.tickVisibleScanline()
+
+  } else if line == SCANLINE_NMI {
+    ppu.STATUS.VBlankStarted = true
+    if ppu.CTRL.NMIonVBlank {
+      ppu.CPU.nmiRequested = true
+    }
   }
 
   ppu.Dot += 1
@@ -25,9 +42,25 @@ func (ppu *PPU) TickScanline() {
   }
 }
 
+func (ppu *PPU) tickPreScanline() {
+  dot := ppu.Dot
+
+  if dot == 1 {
+    //Not in VBlank anymore. Prepare for next visible scanlines.
+    ppu.STATUS.VBlankStarted  = false
+    ppu.STATUS.Sprite0Hit     = false
+    ppu.STATUS.SpriteOverflow = false
+
+  } else if dot >= 280 && dot <= 304 {
+    ppu.ADDR.TransferY()
+  }
+
+  // Now do everything a visible line does
+  ppu.tickVisibleScanline()
+}
+
 func (ppu *PPU) tickVisibleScanline() {
   line := ppu.Scanline
-  lineType := scanlineType(line)
   dot := ppu.Dot
   dotType := DotType(dot)
 
@@ -35,7 +68,8 @@ func (ppu *PPU) tickVisibleScanline() {
     ppu.RenderSinglePixel()
   }
 
-  if dotType == DOT_TYPE_VISIBLE || dotType == DOT_TYPE_PREFETCH {
+  //if dotType == DOT_TYPE_VISIBLE || dotType == DOT_TYPE_PREFETCH {
+  if (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 340) {
     switch ppu.Dot % 8 {
       case 1:
         ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
@@ -52,19 +86,16 @@ func (ppu *PPU) tickVisibleScanline() {
   }
 
   // http://wiki.nesdev.com/w/index.php/PPU_scrolling
-  if line == 256 {
+  if dot == 256 {
     ppu.ADDR.IncrementFineY()
   }
 
-  if line == 257 {
+  if dot == 257 {
     ppu.ADDR.TransferX()
   }
 
-  if lineType == SCANLINE_TYPE_PRE && dot >= 280 && dot <= 304 {
-    ppu.ADDR.TransferY()
-  }
-
-  if dotType == DOT_TYPE_VISIBLE || dotType == DOT_TYPE_PREFETCH {
+  if dot >= 1 && dot % 8 == 0 {
+    ppu.ADDR.IncrementCoarseX()
   }
 }
 

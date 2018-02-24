@@ -237,6 +237,8 @@ type PPU struct {
   SCRL    *PPUSCROLL
   ADDR    *PPUADDR
 
+  CPU     *CPU
+
   // This is usually mapped to be the chartridge ram!
   // On mapper 0, accessing 0-0x2000 on the PPU actually
   // accesses the cartridge's CHR-RAM/ROM
