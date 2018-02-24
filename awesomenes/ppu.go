@@ -267,8 +267,8 @@ type PPU struct {
   // Background
   //VRAMAddr     uint16
   //VRAMAddrTemp uint16
-  FineXScroll  uint16
-  IsFirstWrite bool
+  //FineXScroll  uint16
+  //IsFirstWrite bool
 
   BgTileShiftLow    uint16
   BgTileShiftHigh   uint16
@@ -279,8 +279,20 @@ type PPU struct {
   BgPaletteShift2 uint8
 
   // Sprite
-  //PrimaryOAMBuffer
+  PrimaryOAMBuffer   []OAMSprite
+  SecondaryOAMBuffer []OAMSprite
 
+}
+
+type OAMSprite struct {
+  x    uint8
+  y    uint8
+
+  // Number of the tile in the pattern tables
+  tile uint8
+
+  // Links this sprite to a color palette
+  attr uint8
 }
 
 func MakePPU(chrROM Memory) *PPU {
@@ -294,6 +306,9 @@ func MakePPU(chrROM Memory) *PPU {
     PatternTableData: chrROM,
     NametableData:    make(Memory, 0x0800),
     PaletteData:      make(Memory, 0x0020),
+
+    PrimaryOAMBuffer:   make([]OAMSprite, 64),
+    SecondaryOAMBuffer: make([]OAMSprite,  8),
   }
 }
 

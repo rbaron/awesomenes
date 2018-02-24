@@ -60,15 +60,10 @@ func (ppu *PPU) tickPreScanline() {
 }
 
 func (ppu *PPU) tickVisibleScanline() {
-  line := ppu.Scanline
   dot := ppu.Dot
-  dotType := DotType(dot)
 
-  if dotType == DOT_TYPE_VISIBLE {
-    ppu.RenderSinglePixel()
-  }
+  // Background evaluation
 
-  //if dotType == DOT_TYPE_VISIBLE || dotType == DOT_TYPE_PREFETCH {
   if (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 340) {
     switch ppu.Dot % 8 {
       case 1:
@@ -85,7 +80,16 @@ func (ppu *PPU) tickVisibleScanline() {
     }
   }
 
-  // http://wiki.nesdev.com/w/index.php/PPU_scrolling
+  // Sprite evaluation
+
+  if dot == 1 {
+    ppu.ClearSecondaryOAM()
+  } else if dot == 256 {
+    ppu.EvalSprites()
+  }
+
+  // Housekeeping. See  http://wiki.nesdev.com/w/index.php/PPU_scrolling
+
   if dot == 256 {
     ppu.ADDR.IncrementFineY()
   }
@@ -97,9 +101,21 @@ func (ppu *PPU) tickVisibleScanline() {
   if dot >= 1 && dot % 8 == 0 {
     ppu.ADDR.IncrementCoarseX()
   }
+
+  ppu.RenderSinglePixel()
 }
 
 func (ppu *PPU) RenderSinglePixel() {
+  return
+}
+
+// Noop is fine?
+func (ppu *PPU) ClearSecondaryOAM() {
+  return
+}
+
+func (ppu *PPU) EvalSprites() {
+  return
 }
 
 const (
@@ -110,9 +126,9 @@ const (
 
   SCANLINE_NMI          = 241
 
-  DOT_TYPE_VISIBLE    = 0x1
-  DOT_TYPE_PREFETCH   = 0x2
-  DOT_TYPE_INVISIBLE  = 0x3
+  DOT_TYPE_VISIBLE      = 0x1
+  DOT_TYPE_PREFETCH     = 0x2
+  DOT_TYPE_INVISIBLE    = 0x3
 )
 
 func scanlineType(scanlineN int) int {
