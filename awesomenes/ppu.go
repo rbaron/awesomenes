@@ -32,6 +32,7 @@ type PPUCTRL struct {
 }
 
 func (ctrl *PPUCTRL) Set(v uint8) {
+  // TODO set temp addr?
   switch v & 0x3 {
     case 0x0:
       ctrl.NameTableAddr = 0x2000
@@ -102,17 +103,41 @@ func (status *PPUSTATUS) Get() (result uint8) {
 }
 
 type PPUADDR struct {
-  addr    uint16
-  writeLo bool
+  VAddr        uint16  // v
+  TAddr        uint16  // t
+  WriteHi      bool    // w
+  FineXScroll  uint8   // x
 }
 
 func (addr *PPUADDR) Write(v uint8) {
-  if addr.writeLo {
-    addr.addr |= uint16(v)
-    addr.writeLo = false
+  if addr.WriteHi == false {
+    addr.TAddr |= uint16(v) << 8
+    addr.TAddr &= 0x7fff
+    addr.WriteHi = true
   } else {
-    addr.addr = uint16(v) << 8
-    addr.writeLo = true
+    addr.TAddr |= uint16(v)
+    addr.VAddr = addr.TAddr
+    addr.WriteHi = false
+  }
+}
+
+func (addr *PPUADDR) SetOnCTRLWrite(v uint8) {
+  addr.TAddr |= uint16(v & 0x03) << 10
+}
+
+func (addr *PPUADDR) SetOnSTATUSRead() {
+  addr.WriteHi = false
+}
+
+func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
+  if addr.WriteHi == false {
+    addr.TAddr |= uint16(v >> 3)
+    addr.FineXScroll = v & 0x3
+    addr.WriteHi = true
+  } else {
+    addr.TAddr |= uint16(v & 0x03) << 12
+    addr.TAddr |= uint16(v & 0xf8) << 2
+    addr.WriteHi = false
   }
 }
 
@@ -150,13 +175,39 @@ type PPU struct {
 
   OAMADDR uint8
   OAMData [256]uint8
+
+  /*
+    Rendering
+  */
+
+  // Background
+  //VRAMAddr     uint16
+  //VRAMAddrTemp uint16
+  FineXScroll  uint16
+  IsFirstWrite bool
+
+  BgTileShift1    uint16
+  BgTileShift2    uint16
+
+  // Low byte for bg that will be put in the shift reg
+  BgLatchLow      uint8
+  BgLatchHigh     uint8
+
+  BgPaletteShift1 uint8
+  BgPaletteShift2 uint8
+
+  // Sprite
+  //PrimaryOAMBuffer
+
 }
 
 func MakePPU(chrROM Memory) *PPU {
   return &PPU{
+    ADDR:   &PPUADDR{},
     CTRL:   &PPUCTRL{},
     MASK:   &PPUMASK{},
     STATUS: &PPUSTATUS{},
+    SCRL:   &PPUSCROLL{},
 
     PatternTableData: chrROM,
     NametableData:    make(Memory, 0x0800),
@@ -180,13 +231,13 @@ func (ppu *PPU) ReadOAMData() uint8 {
 
 //PPUDATA
 func (ppu *PPU) WriteData(v uint8) {
-  ppu.Write8(ppu.ADDR.addr, v)
-  ppu.ADDR.addr += ppu.CTRL.VRAMReadIncrement
+  ppu.Write8(ppu.ADDR.VAddr, v)
+  ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
 }
 
 func (ppu *PPU) ReadData() uint8 {
-  val := ppu.Read8(ppu.ADDR.addr)
-  ppu.ADDR.addr += ppu.CTRL.VRAMReadIncrement
+  val := ppu.Read8(ppu.ADDR.VAddr)
+  ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
   return val
 }
 

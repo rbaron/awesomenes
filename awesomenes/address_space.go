@@ -47,9 +47,9 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 
     // PPU registers
     case addr >= 0x2000 && addr < 0x4000:
-      //return as.PPU.Read8(0x2000 + addr % 8)
       switch 0x2000 + addr % 8 {
         case 0x2002:
+          as.PPU.ADDR.SetOnSTATUSRead()
           return as.PPU.STATUS.Get()
 
         case 0x2004:
@@ -92,6 +92,7 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
       switch 0x2000 + addr % 8 {
         case 0x2000:
           as.PPU.CTRL.Set(v)
+          as.PPU.ADDR.SetOnCTRLWrite(v)
 
         case 0x2001:
           as.PPU.MASK.Set(v)
@@ -103,6 +104,7 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
           as.PPU.WriteOAMData(v)
 
         case 0x2005:
+          as.PPU.ADDR.SetOnSCROLLWrite(v)
           as.PPU.SCRL.Write(v)
 
         case 0x2006:
