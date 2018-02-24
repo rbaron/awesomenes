@@ -52,6 +52,14 @@ func (ctrl *PPUCTRL) Set(v uint8) {
   ctrl.NMIonVBlank        = boolSetter(v, 7, false, true)
 }
 
+func (ppu *PPU) LowBGTileAddr() uint16 {
+  return ppu.CTRL.BgTableAddr + uint16(ppu.NameTableLatch) * 16 + ppu.ADDR.FineY()
+}
+
+func (ppu *PPU) HighBGTileAddr() uint16 {
+  return ppu.LowBGTileAddr() + 8
+}
+
 /*
   PPUMASK
 */
@@ -109,6 +117,22 @@ type PPUADDR struct {
   FineXScroll  uint8   // x
 }
 
+// http://wiki.nesdev.com/w/index.php/PPU_scrolling
+func (addr *PPUADDR) NameTableAddr() uint16 {
+  return 0x2000 | (addr.VAddr & 0x0fff)
+}
+
+// http://wiki.nesdev.com/w/index.php/PPU_scrolling
+func (addr *PPUADDR) AttrTableAddr() uint16 {
+  v := addr.VAddr
+  return 0x23c0 | (v & 0x0c00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
+}
+
+func (addr *PPUADDR) FineY() uint16 {
+  return (addr.VAddr >> 12) & 0x07
+}
+
+
 func (addr *PPUADDR) Write(v uint8) {
   if addr.WriteHi == false {
     addr.TAddr |= uint16(v) << 8
@@ -129,6 +153,15 @@ func (addr *PPUADDR) SetOnSTATUSRead() {
   addr.WriteHi = false
 }
 
+// http://wiki.nesdev.com/w/index.php/PPU_scrolling
+func (addr *PPUADDR) TransferX () {
+  addr.VAddr = (addr.VAddr & 0xFBE0) | (addr.TAddr & 0x041F)
+}
+
+func (addr *PPUADDR) TransferY () {
+  addr.VAddr = (addr.VAddr & 0x841F) | (addr.TAddr & 0x7BE0)
+}
+
 func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
   if addr.WriteHi == false {
     addr.TAddr |= uint16(v >> 3)
@@ -140,6 +173,46 @@ func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
     addr.WriteHi = false
   }
 }
+
+// http://wiki.nesdev.com/w/index.php/PPU_scrolling#Y_increment
+func (addr *PPUADDR) IncrementFineY() {
+  v := addr.VAddr
+  var y uint16
+
+  if ((v & 0x7000) != 0x7000) {
+    v += 0x1000
+  } else {
+    //v &= ^0x7000
+    v &= 0x8FFF
+    y = (v & 0x03E0) >> 5
+    if (y == 29) {
+      y = 0
+      v ^= 0x0800
+    } else {
+      if (y == 31) {
+        y = 0
+      } else {
+        y += 1
+      }
+    }
+  }
+  addr.VAddr  = (v & 0xFC1F) | (y << 5)
+}
+
+// http://wiki.nesdev.com/w/index.php/PPU_scrolling#X_increment
+func (addr *PPUADDR) IncrementCoarseX() {
+  v := addr.VAddr
+
+  if ((v & 0x001F) == 31) {
+    v &= 0xFFE0
+    v ^= 0x0400
+  } else {
+    v += 1
+  }
+
+  addr.VAddr = v
+}
+
 
 type PPUSCROLL struct {
   X uint8
@@ -179,6 +252,15 @@ type PPU struct {
   /*
     Rendering
   */
+  Scanline  int
+  Dot       int
+
+  // Latches that will be fetched during visible/pre scanlines
+  // and then pushed into the
+  NameTableLatch  uint8
+  AttrTableLatch  uint8
+  BgLatchLow      uint8
+  BgLatchHigh     uint8
 
   // Background
   //VRAMAddr     uint16
@@ -186,12 +268,10 @@ type PPU struct {
   FineXScroll  uint16
   IsFirstWrite bool
 
-  BgTileShift1    uint16
-  BgTileShift2    uint16
+  BgTileShiftLow    uint16
+  BgTileShiftHigh   uint16
 
   // Low byte for bg that will be put in the shift reg
-  BgLatchLow      uint8
-  BgLatchHigh     uint8
 
   BgPaletteShift1 uint8
   BgPaletteShift2 uint8
