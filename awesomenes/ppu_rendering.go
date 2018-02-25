@@ -1,6 +1,9 @@
 package awesomenes
 
-import "log"
+import (
+  "log"
+  "math/rand"
+)
 
 /*
   Screen resolution: 256 cols * 240 rows pixels
@@ -9,6 +12,14 @@ import "log"
 
   Timings extracted from http://wiki.nesdev.com/w/images/d/d1/Ntsc_timing.png
 */
+
+func makeRandom(pixels []byte) {
+  for i := 0; i < 240; i++ {
+    for j := 0; j < 256; j++ {
+      pixels[i*240 + j] = uint8(rand.Uint32() % 32)
+    }
+  }
+}
 
 func (ppu *PPU) TickScanline() {
   line := ppu.Scanline
@@ -25,6 +36,8 @@ func (ppu *PPU) TickScanline() {
   } else if line == SCANLINE_NMI {
     //log.Printf("VBLANK WILL START\n")
     ppu.STATUS.VBlankStarted = true
+    makeRandom(ppu.Pixels)
+    ppu.tv.SetFrame(ppu.Pixels)
     if ppu.CTRL.NMIonVBlank {
       ppu.CPU.nmiRequested = true
     }

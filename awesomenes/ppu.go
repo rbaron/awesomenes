@@ -1,6 +1,8 @@
 package awesomenes
 
-import "log"
+import (
+  "log"
+)
 
 func addrSetter(v uint8, bitN uint8, ifNotSet uint16, ifSet uint16) uint16 {
   if v & (0x1 << bitN) == 0 { return ifNotSet } else { return ifSet }
@@ -239,6 +241,8 @@ type PPU struct {
 
   CPU     *CPU
 
+  tv      *TV
+
   // This is usually mapped to be the chartridge ram!
   // On mapper 0, accessing 0-0x2000 on the PPU actually
   // accesses the cartridge's CHR-RAM/ROM
@@ -296,13 +300,15 @@ type OAMSprite struct {
   attr uint8
 }
 
-func MakePPU(chrROM Memory) *PPU {
+func MakePPU(chrROM Memory, tv *TV) *PPU {
   return &PPU{
     ADDR:   &PPUADDR{},
     CTRL:   &PPUCTRL{},
     MASK:   &PPUMASK{},
     STATUS: &PPUSTATUS{},
     SCRL:   &PPUSCROLL{},
+
+    tv:     tv,
 
     PatternTableData: chrROM,
     NametableData:    make(Memory, 0x0800),
