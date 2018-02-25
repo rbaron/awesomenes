@@ -1,7 +1,7 @@
 package awesomenes
 
 import (
-  "log"
+  //"log"
   "github.com/veandco/go-sdl2/sdl"
 )
 
@@ -52,7 +52,7 @@ func MakeTV() *TV {
 }
 
 func (tv *TV) SetFrame(pixels []byte) {
-  log.Printf("WIll set frame")
+  //log.Printf("WIll set frame")
   tv.texture.Update(nil, pixels, SCREEN_WIDTH)
 }
 

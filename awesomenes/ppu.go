@@ -34,6 +34,7 @@ type PPUCTRL struct {
 }
 
 func (ctrl *PPUCTRL) Set(v uint8) {
+  log.Printf("WROTE CONTROL %b", v)
   // TODO set temp addr?
   switch v & 0x3 {
     case 0x0:
@@ -78,6 +79,7 @@ type PPUMASK struct {
 }
 
 func (mask *PPUMASK) Set(v uint8) {
+  log.Printf("WROTE MASK %b", v)
   mask.Greyscale       = boolSetter(v, 0, false, true)
   mask.ShowBgLeft      = boolSetter(v, 1, false, true)
   mask.ShowSpritesLeft = boolSetter(v, 2, false, true)
@@ -99,16 +101,18 @@ type PPUSTATUS struct {
 
 func (status *PPUSTATUS) Get() (result uint8) {
   if status.SpriteOverflow {
-    result |= 0x1 << 5
+    result |= (0x1 << 5)
   }
   if status.Sprite0Hit {
-    result |= 0x1 << 6
+    result |= (0x1 << 6)
   }
   if status.VBlankStarted {
-    result |= 0x1 << 7
+    result |= (0x1 << 7)
   }
 
-  result |= status.LastWrite & 0x1f
+  result |= (status.LastWrite & 0x1f)
+
+  status.VBlankStarted = false
   return
 }
 
@@ -148,7 +152,7 @@ func (addr *PPUADDR) Write(v uint8) {
 }
 
 func (addr *PPUADDR) SetOnCTRLWrite(v uint8) {
-  addr.TAddr |= uint16(v & 0x03) << 10
+  addr.TAddr = (addr.TAddr & 0xf3ff) | uint16(v & 0x03) << 10
 }
 
 func (addr *PPUADDR) SetOnSTATUSRead() {
@@ -317,7 +321,10 @@ func MakePPU(chrROM Memory, tv *TV) *PPU {
     PrimaryOAMBuffer:   make([]OAMSprite, 64),
     SecondaryOAMBuffer: make([]OAMSprite,  8),
 
-    Pixels: make([]byte, 256 * 240),
+    Scanline:  241,
+    Dot:       0,
+
+    Pixels: make([]byte, 4 * 256 * 240),
   }
 }
 
@@ -352,6 +359,7 @@ func (ppu *PPU) OMADMA(data []uint8) {
 }
 
 func (ppu *PPU) Write8 (addr uint16, v uint8) {
+  addr = addr % 0x4000
   switch {
     // Pattern tables - for now hard mapped to CHRROM
     case addr >= 0x0000 && addr < 0x2000:

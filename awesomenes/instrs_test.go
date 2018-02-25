@@ -319,6 +319,24 @@ func TestCMP(t *testing.T) {
   if cpu.getFlag(StatusFlagN) {
     t.Fatalf("Flag N should not have been set")
   }
+
+  cpu.regs.A = 0x00
+  cpu.regs.PC = 0x0004
+  cpu.mem.Write8(0x0005, 0x0a)
+
+  cmp(cpu, AddrModeImmediate)
+
+  if cpu.getFlag(StatusFlagZ) {
+    t.Fatalf("Flag Z should not have been set")
+  }
+
+  if !cpu.getFlag(StatusFlagN) {
+    t.Fatalf("Flag N should have been set")
+  }
+
+  if cpu.getFlag(StatusFlagC) {
+    t.Fatalf("Flag N should not have been set")
+  }
 }
 
 func TestDEC(t *testing.T) {

@@ -34,22 +34,26 @@ func (ppu *PPU) TickScanline() {
     ppu.tickVisibleScanline()
 
   } else if line == SCANLINE_NMI {
-    //log.Printf("VBLANK WILL START\n")
-    ppu.STATUS.VBlankStarted = true
-    makeRandom(ppu.Pixels)
-    ppu.tv.SetFrame(ppu.Pixels)
-    if ppu.CTRL.NMIonVBlank {
-      ppu.CPU.nmiRequested = true
+    if ppu.Dot == 1 {
+      //log.Printf("VBLANK WILL START\n")
+      ppu.STATUS.VBlankStarted = true
+      //makeRandom(ppu.Pixels)
+      if ppu.CTRL.NMIonVBlank {
+        ppu.CPU.nmiRequested = true
+      }
+    }
+  } else if lineType == SCANLINE_TYPE_POST {
+    if ppu.Dot == 0 {
+      ppu.tv.SetFrame(ppu.Pixels)
     }
   }
 
+  //log.Printf("Line: %v", line)
   ppu.Dot += 1
   if ppu.Dot == 341 {
     ppu.Scanline += 1
     if ppu.Scanline == 262 {
-      // Frame is ready for displaying
-
-      // Trigger nmi?
+      // Wrap around
       ppu.Scanline = 0
     }
     ppu.Dot = 0
@@ -88,8 +92,11 @@ func (ppu *PPU) tickVisibleScanline() {
       case 4:
         ppu.AttrTableLatch = ppu.Read8(ppu.ADDR.AttrTableAddr())
       case 5:
+        //log.Printf("Low bg tile addr %x", ppu.LowBGTileAddr())
         ppu.BgLatchLow = ppu.Read8(ppu.LowBGTileAddr())
+        //log.Printf("LathLow %x", ppu.BgLatchLow)
       case 7:
+        //log.Printf("Low bg tile addr %x", ppu.HighBGTileAddr())
         ppu.BgLatchHigh = ppu.Read8(ppu.HighBGTileAddr())
     }
   }
@@ -123,7 +130,37 @@ func (ppu *PPU) RenderSinglePixel() {
   line := ppu.Scanline
   dot := ppu.Dot
 
-  ppu.Pixels[(line * 256 + dot) % (256 * 240)] = uint8((line + dot) & 0xff)
+    test := ((ppu.BgTileShiftHigh >> 15) << 1) | (ppu.BgTileShiftLow >> 15)
+    v := uint8((80 * test) & 0xff)
+
+    //ppu.Pixels[line * 255 + dot] = 60*uint8(test)
+    if line >= 0 && line <= 239 {
+      //v := uint8(rand.Uint32() & 0x03)
+      //vv := v << 6 | v << 4 | v << 2 | 0x3
+      ppu.Pixels[4*(line * 255 + dot) + 0] = v
+      ppu.Pixels[4*(line * 255 + dot) + 1] = v
+      ppu.Pixels[4*(line * 255 + dot) + 2] = v
+      ppu.Pixels[4*(line * 255 + dot) + 3] = 0xff
+    }
+
+  //if line >= 0 && line <= 239 {
+  //  //ppu.Pixels[(line * 256 + dot + 0)] = 40*uint8(test)
+  //  //ppu.Pixels[(line * 256 + dot + 1)] = 40*uint8(test)
+  //  //ppu.Pixels[(line * 256 + dot + 2)] = 40*uint8(test)
+  //  //ppu.Pixels[(line * 256 + dot + 3)] = 0xff
+  //  //ppu.Pixels[1*(line * 255 + dot) + 0] = uint8(line)
+  //  //ppu.Pixels[1*(line * 255 + dot) + 1] = uint8(line)
+  //  //ppu.Pixels[1*(line * 255 + dot) + 2] = uint8(line)
+  //  //ppu.Pixels[1*(line * 255 + dot) + 3] = uint8(line)
+  //  //ppu.Pixels[(line * 256 + dot + 1)] = 40*uint8(test & 0x1)
+  //  //ppu.Pixels[(line * 256 + dot + 2)] = 40*uint8(test & 0x1)
+  //  //ppu.Pixels[(line * 256 + dot + 3)] = 40*uint8(test & 0x1)
+  //}
+
+  //log.Printf("Test: %x line %v", test, line)
+
+  ppu.BgTileShiftHigh <<= 1
+  ppu.BgTileShiftLow  <<= 1
 }
 
 // Noop is fine?

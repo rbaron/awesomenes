@@ -47,6 +47,7 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 
     // PPU registers
     case addr >= 0x2000 && addr < 0x4000:
+      log.Printf("Reading PPUADDR %x", 0x2000 + addr % 8)
       switch 0x2000 + addr % 8 {
         case 0x2002:
           as.PPU.ADDR.SetOnSTATUSRead()
@@ -62,6 +63,18 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
           log.Fatalf("Invalid read from CPU mem space at %x", addr)
           return 0
       }
+
+    case addr == 0x4015:
+        log.Fatalf("Not yet handled read to APU at %x", addr)
+        return 0
+
+    case addr == 0x4016:
+        log.Fatalf("Not yet handled read to controller #1 at %x", addr)
+        return 0
+
+    case addr == 0x4017:
+        log.Fatalf("Not yet handled read to controller #2 at %x", addr)
+        return 0
 
     // PRGRAM mirrorred every 0x800 bytes
     case addr >= 0x6000 && addr < 0x8000:
@@ -89,6 +102,7 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
     case addr >= 0x2000 && addr < 0x4000:
       as.PPU.STATUS.LastWrite = v
 
+      //log.Printf("Writing PPUADDR %x: %b", addr, v)
       switch 0x2000 + addr % 8 {
         case 0x2000:
           as.PPU.CTRL.Set(v)
@@ -117,6 +131,9 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
           log.Fatalf("Invalid write to CPU mem space at %x", addr)
       }
 
+    case addr >= 0x4000 && addr <= 0x4013:
+      log.Printf("Not yet handled write to APU at %x", addr)
+
     case addr == 0x4014:
       //Might need change with mapper
       data  := make([]uint8, 256)
@@ -124,6 +141,15 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
         data[i] = as.Read8(uint16(v) << 8 + uint16(i))
       }
       as.PPU.OMADMA(data)
+
+    case addr == 0x4015:
+      log.Printf("Not yet handled write to APU at %x", addr)
+
+    case addr == 0x4016:
+      log.Printf("Not yet handled write to controllers at %x", addr)
+
+    case addr == 0x4017:
+      log.Printf("Not yet handled write to APU at %x", addr)
 
     // PRGRAM mirrorred every 0x800 bytes
     // No CHR RAM for now

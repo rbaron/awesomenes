@@ -85,6 +85,7 @@ func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
 
 // Break
 func brk(cpu *CPU, addrMode addressingMode) {
+  // TODO might need to increment PC as well before pushing?
   cpu.Push16(cpu.regs.PC)
   cpu.Push8(cpu.regs.P)
   cpu.setFlag(StatusFlagB)
@@ -231,7 +232,7 @@ func jmp(cpu *CPU, addrMode addressingMode) {
 // Jump to subroutine
 func jsr(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
-  cpu.Push16(cpu.regs.PC - 1)
+  cpu.Push16(cpu.regs.PC - 1 + 3)
   cpu.regs.PC = addr
 }
 
@@ -352,34 +353,32 @@ func bvs(cpu *CPU, addrMode addressingMode) {
   }
 }
 
-func _comp(v uint8, cpu *CPU) {
+func _comp(v1 uint8, v2 uint8, cpu *CPU) {
+  v := v1 - v2
   cpu.setOrReset(StatusFlagZ, v == 0)
   cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
-  cpu.setOrReset(StatusFlagC, v >= 0)
+  cpu.setOrReset(StatusFlagC, v1 >= v2)
 }
 
 // Compare with A
 func cmp(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   m := cpu.mem.Read8(addr)
-  v := cpu.regs.A - m
-  _comp(v, cpu)
+  _comp(cpu.regs.A, m, cpu)
 }
 
 // Compare with X
 func cpx(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   m := cpu.mem.Read8(addr)
-  v := cpu.regs.X - m
-  _comp(v, cpu)
+  _comp(cpu.regs.X, m, cpu)
 }
 
 // Compare with Y
 func cpy(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   m := cpu.mem.Read8(addr)
-  v := cpu.regs.Y - m
-  _comp(v, cpu)
+  _comp(cpu.regs.Y, m, cpu)
 }
 
 func dec(cpu *CPU, addrMode addressingMode) {

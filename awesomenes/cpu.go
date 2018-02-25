@@ -56,7 +56,7 @@ func (cpu *CPU) PowerUp() {
 }
 
 func (cpu *CPU) Run() int {
-  //fmt.Printf("%v", cpu)
+  fmt.Printf("%v", cpu)
 
   if cpu.nmiRequested {
     log.Printf("WIll do NMI!\n")
