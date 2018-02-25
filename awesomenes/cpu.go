@@ -17,7 +17,7 @@ const (
 )
 
 const (
-  MemStackBase = 0x10ff
+  MEM_STACK_BASE = 0x100
 )
 
 type registers struct {
@@ -51,13 +51,15 @@ func MakeCPU(addrSpace AddrSpace) *CPU {
 func (cpu *CPU) PowerUp() {
   // Set PC to the reset interrupt vector
   cpu.regs.PC = cpu.mem.Read16(0xfffc)
-  cpu.regs.P = 0x24
+  cpu.regs.SP = 0xfd
+  cpu.regs.P  = 0x24
 }
 
 func (cpu *CPU) Run() int {
   fmt.Printf("%v", cpu)
 
   if cpu.nmiRequested {
+    log.Printf("WIll do NMI!\n")
     cpu.doNMI()
   }
 
@@ -130,7 +132,7 @@ func (c *CPU) Pop16() uint16 {
 }
 
 func (c *CPU) stackPos() uint16 {
-  return MemStackBase - uint16(c.regs.SP)
+  return MEM_STACK_BASE | uint16(c.regs.SP)
 }
 
 func (c *CPU) getFlag(flag uint8) bool {

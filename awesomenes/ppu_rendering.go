@@ -23,6 +23,7 @@ func (ppu *PPU) TickScanline() {
     ppu.tickVisibleScanline()
 
   } else if line == SCANLINE_NMI {
+    //log.Printf("VBLANK WILL START\n")
     ppu.STATUS.VBlankStarted = true
     if ppu.CTRL.NMIonVBlank {
       ppu.CPU.nmiRequested = true
@@ -106,7 +107,10 @@ func (ppu *PPU) tickVisibleScanline() {
 }
 
 func (ppu *PPU) RenderSinglePixel() {
-  return
+  line := ppu.Scanline
+  dot := ppu.Dot
+
+  ppu.Pixels[(line * 256 + dot) % (256 * 240)] = uint8((line + dot) & 0xff)
 }
 
 // Noop is fine?

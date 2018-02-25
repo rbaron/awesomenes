@@ -184,8 +184,11 @@ func sbc(cpu *CPU, addrMode addressingMode) {
 }
 
 // Push processor state
+// See http://wiki.nesdev.com/w/index.php/CPU_status_flag_behavior
+// for the meaning of | 0x10. Hint: it has none
 func php(cpu *CPU, addrMode addressingMode) {
-  cpu.Push8(cpu.regs.P)
+  //cpu.Push8(cpu.regs.P)
+  cpu.Push8(cpu.regs.P | 0x10)
 }
 
 func pha(cpu *CPU, addrMode addressingMode) {
@@ -199,6 +202,7 @@ func plp(cpu *CPU, addrMode addressingMode) {
 
 func pla(cpu *CPU, addrMode addressingMode) {
   cpu.regs.A = cpu.Pop8()
+  setOrResetNZ(cpu.regs.A, cpu)
 }
 
 // Clear carry
@@ -255,7 +259,7 @@ func bit(cpu *CPU, addrMode addressingMode) {
   v := cpu.mem.Read8(addr)
 
   cpu.setOrReset(StatusFlagZ, cpu.regs.A & v == 0)
-  cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
+  cpu.setOrReset(StatusFlagN, (v >> 7) & 0x1 == 0x1)
   cpu.setOrReset(StatusFlagV, (v >> 6) & 0x1 == 0x1)
 }
 
@@ -263,6 +267,7 @@ func bit(cpu *CPU, addrMode addressingMode) {
 func rol(cpu *CPU, addrMode addressingMode) {
   inner := func (v uint8) uint8 {
     v = (v << 1) | (v >> 7)
+    cpu.setOrReset(StatusFlagC, (v >> 7) & 0x1 == 0x1)
     cpu.setOrReset(StatusFlagZ, v == 0)
     cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
     return v
@@ -280,6 +285,7 @@ func rol(cpu *CPU, addrMode addressingMode) {
 func ror(cpu *CPU, addrMode addressingMode) {
   inner := func (v uint8) uint8 {
     v = (v >> 1) | ((v & 0x1) << 7)
+    cpu.setOrReset(StatusFlagC, v & 0x1 == 0x1)
     cpu.setOrReset(StatusFlagZ, v == 0)
     cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
     return v

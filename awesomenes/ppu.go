@@ -282,6 +282,7 @@ type PPU struct {
   PrimaryOAMBuffer   []OAMSprite
   SecondaryOAMBuffer []OAMSprite
 
+  Pixels             []byte
 }
 
 type OAMSprite struct {
@@ -309,11 +310,13 @@ func MakePPU(chrROM Memory) *PPU {
 
     PrimaryOAMBuffer:   make([]OAMSprite, 64),
     SecondaryOAMBuffer: make([]OAMSprite,  8),
+
+    Pixels: make([]byte, 256 * 240),
   }
 }
 
-func (ppu *PPU) Run() int {
-  return 10
+func (ppu *PPU) Run() {
+  ppu.TickScanline()
 }
 
 //OAMDATA
