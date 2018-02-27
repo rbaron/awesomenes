@@ -35,6 +35,9 @@ type CPU struct {
 
   // Has a non-maskable interrupt been requested?
   nmiRequested bool
+
+  // Set to true if an instruction modifies the PC
+  jumped bool
 }
 
 func MakeCPU(addrSpace AddrSpace) *CPU {
@@ -56,14 +59,13 @@ func (cpu *CPU) PowerUp() {
 }
 
 func (cpu *CPU) Run() int {
-  fmt.Printf("%v", cpu)
 
   if cpu.nmiRequested {
     log.Printf("WIll do NMI!\n")
     cpu.doNMI()
   }
 
-  pcBkp := cpu.regs.PC
+  fmt.Printf("%v", cpu)
 
   opcode := cpu.mem.Read8(cpu.regs.PC)
   instr, ok := instrTable[opcode]
@@ -74,7 +76,9 @@ func (cpu *CPU) Run() int {
 
   instr.fn(cpu, instr.addrMode)
 
-  if cpu.regs.PC == pcBkp {
+  if cpu.jumped {
+    cpu.jumped = false
+  } else {
     cpu.regs.PC += uint16(instr.size)
   }
 
@@ -88,6 +92,7 @@ func (cpu *CPU) doNMI() {
   cpu.regs.PC = cpu.mem.Read16(0xfffa)
   cpu.setFlag(StatusFlagI)
   cpu.nmiRequested = false
+  //cpu.jumped = true
 }
 
 // Same format as the awesome github.com/fogleman/nes for debugging

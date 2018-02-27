@@ -23,3 +23,4 @@ func (m Memory) Dump(addr, amount uint16) {
     fmt.Println("")
   }
 }
+

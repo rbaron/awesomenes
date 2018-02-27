@@ -90,6 +90,10 @@ func (mask *PPUMASK) Set(v uint8) {
   mask.emphasisBlue    = boolSetter(v, 0, false, true)
 }
 
+func (mask *PPUMASK) shoudlRender() bool {
+  return mask.showBg || mask.showSprites
+}
+
 type PPUSTATUS struct {
   SpriteOverflow bool
   Sprite0Hit     bool
@@ -141,13 +145,20 @@ func (addr *PPUADDR) FineY() uint16 {
 
 func (addr *PPUADDR) Write(v uint8) {
   if addr.WriteHi == false {
-    addr.TAddr |= uint16(v) << 8
-    addr.TAddr &= 0x7fff
+    log.Printf("Wrote PPUADDR LOW %x", v)
+    //addr.TAddr |= ((uint16(v) & 0x3f) << 8)
+    //addr.TAddr |= ((uint16(v) & 0x3f) << 8)
+    addr.TAddr = (addr.TAddr & 0x80FF) | ((uint16(v) & 0x3F) << 8)
+    //addr.TAddr &= 0x7fff
+    //addr.TAddr = (addr.TAddr & 0x80FF) | ((uint16(v) & 0x3F) << 8)
     addr.WriteHi = true
   } else {
-    addr.TAddr |= uint16(v)
+    log.Printf("Wrote PPUADDR HI %x", v)
+    //addr.TAddr |= uint16(v)
+    addr.TAddr = (addr.TAddr & 0xFF00) | uint16(v)
     addr.VAddr = addr.TAddr
     addr.WriteHi = false
+    log.Printf("Wrote PPUADDR %x", addr.VAddr)
   }
 }
 
@@ -170,12 +181,17 @@ func (addr *PPUADDR) TransferY () {
 
 func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
   if addr.WriteHi == false {
-    addr.TAddr |= uint16(v >> 3)
-    addr.FineXScroll = v & 0x3
+    //addr.TAddr |= uint16(v >> 3)
+    //addr.FineXScroll = v & 0x3
     addr.WriteHi = true
+
+    addr.TAddr = (addr.TAddr & 0xFF00) | uint16(v)
+    addr.FineXScroll = v & 0x07
   } else {
-    addr.TAddr |= uint16(v & 0x03) << 12
-    addr.TAddr |= uint16(v & 0xf8) << 2
+    //addr.TAddr |= uint16(v & 0x03) << 12
+    //addr.TAddr |= uint16(v & 0xf8) << 2
+    addr.TAddr = (addr.TAddr & 0x8FFF) | ((uint16(v) & 0x07) << 12)
+    addr.TAddr = (addr.TAddr & 0xFC1F) | ((uint16(v) & 0xF8) << 2)
     addr.WriteHi = false
   }
 }
@@ -321,8 +337,8 @@ func MakePPU(chrROM Memory, tv *TV) *PPU {
     PrimaryOAMBuffer:   make([]OAMSprite, 64),
     SecondaryOAMBuffer: make([]OAMSprite,  8),
 
-    Scanline:  241,
-    Dot:       0,
+    Scanline:  240,
+    Dot:       340,
 
     Pixels: make([]byte, 4 * 256 * 240),
   }
@@ -344,11 +360,13 @@ func (ppu *PPU) ReadOAMData() uint8 {
 
 //PPUDATA
 func (ppu *PPU) WriteData(v uint8) {
+  log.Printf("Wrote PPU data at %x: %x", ppu.ADDR.VAddr, v)
   ppu.Write8(ppu.ADDR.VAddr, v)
   ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
 }
 
 func (ppu *PPU) ReadData() uint8 {
+  //log.Printf("Read PPU Data")
   val := ppu.Read8(ppu.ADDR.VAddr)
   ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
   return val
@@ -358,11 +376,12 @@ func (ppu *PPU) OMADMA(data []uint8) {
   copy(ppu.OAMData[:], data)
 }
 
-func (ppu *PPU) Write8 (addr uint16, v uint8) {
+func (ppu *PPU) Write8(addr uint16, v uint8) {
   addr = addr % 0x4000
   switch {
     // Pattern tables - for now hard mapped to CHRROM
     case addr >= 0x0000 && addr < 0x2000:
+      //log.Printf("Writing on CHROM at %x", addr)
       ppu.PatternTableData.Write8(addr, v)
 
     case addr >= 0x2000 && addr < 0x3f00:

@@ -60,15 +60,24 @@ func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
         //return cpu.regs.PC + uint16(m)
       }
 
+    case AddrModeIndirect:
+      //address = cpu.Read16(cpu.Read16(cpu.PC + 1))
+      m := cpu.mem.Read16(cpu.regs.PC + 1)
+      return cpu.mem.Read16(m)
+
     case AddrModeXIndirect:
+      //address = cpu.Read16(uint16(cpu.Read(cpu.PC+1) + cpu.X))
       m := cpu.mem.Read8(cpu.regs.PC + 1)
       x := cpu.regs.X
-      return uint16(cpu.mem.Read8(uint16(m + x)))
+      //return uint16(cpu.mem.Read8(uint16(m + x)))
+      return cpu.mem.Read16(uint16(m + x))
 
     case AddrModeIndirectY:
+      //address = cpu.Read16(uint16(cpu.Read(cpu.PC+1))) + uint16(cpu.Y)
       m := cpu.mem.Read8(cpu.regs.PC + 1)
       y := cpu.regs.Y
-      return uint16(cpu.mem.Read8(uint16(m)) + y)
+      //return uint16(cpu.mem.Read8(uint16(m)) + y)
+      return cpu.mem.Read16(uint16(m)) + uint16(y)
 
     case AddrModeZeroPage:
       return uint16(cpu.mem.Read8(cpu.regs.PC + 1))
@@ -90,6 +99,7 @@ func brk(cpu *CPU, addrMode addressingMode) {
   cpu.Push8(cpu.regs.P)
   cpu.setFlag(StatusFlagB)
   cpu.regs.PC = cpu.mem.Read16(0xfffe)
+  cpu.jumped = true
 }
 
 // Logical inclusive OR
@@ -227,6 +237,7 @@ func clv(cpu *CPU, addrMode addressingMode) {
 func jmp(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   cpu.regs.PC = addr
+  cpu.jumped = true
 }
 
 // Jump to subroutine
@@ -234,17 +245,20 @@ func jsr(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   cpu.Push16(cpu.regs.PC - 1 + 3)
   cpu.regs.PC = addr
+  cpu.jumped = true
 }
 
 // Return from interrupt
 func rti(cpu *CPU, addrMode addressingMode) {
   cpu.regs.P = cpu.Pop8()
   cpu.regs.PC = cpu.Pop16()
+  cpu.jumped = true
 }
 
 // Return from subroutine
 func rts(cpu *CPU, addrMode addressingMode) {
   cpu.regs.PC = cpu.Pop16() + 1
+  cpu.jumped = true
 }
 
 func and(cpu *CPU, addrMode addressingMode) {
@@ -303,12 +317,14 @@ func ror(cpu *CPU, addrMode addressingMode) {
 func bcc(cpu *CPU, addrMode addressingMode) {
   if !cpu.getFlag(StatusFlagC) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
+    cpu.jumped = true
   }
 }
 
 func bcs(cpu *CPU, addrMode addressingMode) {
   if cpu.getFlag(StatusFlagC) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
+    cpu.jumped = true
   }
 }
 
@@ -316,6 +332,7 @@ func bcs(cpu *CPU, addrMode addressingMode) {
 func bmi(cpu *CPU, addrMode addressingMode) {
   if cpu.getFlag(StatusFlagN) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
+    cpu.jumped = true
   }
 }
 
@@ -323,12 +340,14 @@ func bmi(cpu *CPU, addrMode addressingMode) {
 func beq(cpu *CPU, addrMode addressingMode) {
   if !cpu.getFlag(StatusFlagZ) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
+    cpu.jumped = true
   }
 }
 // Branch if not equal
 func bne(cpu *CPU, addrMode addressingMode) {
   if !cpu.getFlag(StatusFlagZ) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
+    cpu.jumped = true
   }
 }
 
@@ -336,6 +355,7 @@ func bne(cpu *CPU, addrMode addressingMode) {
 func bpl(cpu *CPU, addrMode addressingMode) {
   if !cpu.getFlag(StatusFlagN) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
+    cpu.jumped = true
   }
 }
 
@@ -343,6 +363,7 @@ func bpl(cpu *CPU, addrMode addressingMode) {
 func bvc(cpu *CPU, addrMode addressingMode) {
   if !cpu.getFlag(StatusFlagV) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
+    cpu.jumped = true
   }
 }
 
@@ -350,6 +371,7 @@ func bvc(cpu *CPU, addrMode addressingMode) {
 func bvs(cpu *CPU, addrMode addressingMode) {
   if cpu.getFlag(StatusFlagV) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
+    cpu.jumped = true
   }
 }
 

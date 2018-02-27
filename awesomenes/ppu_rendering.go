@@ -70,7 +70,9 @@ func (ppu *PPU) tickPreScanline() {
     ppu.STATUS.SpriteOverflow = false
 
   } else if dot >= 280 && dot <= 304 {
-    ppu.ADDR.TransferY()
+    if ppu.MASK.shoudlRender() {
+      ppu.ADDR.TransferY()
+    }
   }
 
   // Now do everything a visible line does
@@ -81,8 +83,13 @@ func (ppu *PPU) tickVisibleScanline() {
   dot := ppu.Dot
 
   // Background evaluation
+  if !ppu.MASK.shoudlRender() {
+    return
+  }
 
   if (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 340) {
+    ppu.RenderSinglePixel()
+
     switch ppu.Dot % 8 {
       case 1:
         ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
@@ -103,13 +110,13 @@ func (ppu *PPU) tickVisibleScanline() {
 
   // Sprite evaluation
 
-  if dot == 1 {
-    ppu.ClearSecondaryOAM()
-  } else if dot == 256 {
-    ppu.EvalSprites()
-  }
+  //if dot == 1 {
+  //  ppu.ClearSecondaryOAM()
+  //} else if dot == 256 {
+  //  ppu.EvalSprites()
+  //}
 
-  // Housekeeping. See  http://wiki.nesdev.com/w/index.php/PPU_scrolling
+  //// Housekeeping. See  http://wiki.nesdev.com/w/index.php/PPU_scrolling
 
   if dot == 256 {
     ppu.ADDR.IncrementFineY()
@@ -123,7 +130,6 @@ func (ppu *PPU) tickVisibleScanline() {
     ppu.ADDR.IncrementCoarseX()
   }
 
-  ppu.RenderSinglePixel()
 }
 
 func (ppu *PPU) RenderSinglePixel() {
