@@ -90,7 +90,7 @@ func (mask *PPUMASK) Set(v uint8) {
   mask.emphasisBlue    = boolSetter(v, 0, false, true)
 }
 
-func (mask *PPUMASK) shoudlRender() bool {
+func (mask *PPUMASK) shouldRender() bool {
   return mask.showBg || mask.showSprites
 }
 
@@ -307,6 +307,11 @@ type PPU struct {
   SecondaryOAMBuffer []OAMSprite
 
   Pixels             []byte
+
+  lowTileByte byte
+  highTileByte byte
+  nameTableByte byte
+  tileData uint64
 }
 
 type OAMSprite struct {

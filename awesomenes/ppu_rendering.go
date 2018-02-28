@@ -23,6 +23,7 @@ func makeRandom(pixels []byte) {
 
 func (ppu *PPU) TickScanline() {
   line := ppu.Scanline
+  //log.Printf("Scanline %v", line)
   lineType := scanlineType(line)
 
   // Pre-render scanline
@@ -38,6 +39,7 @@ func (ppu *PPU) TickScanline() {
       //log.Printf("VBLANK WILL START\n")
       ppu.STATUS.VBlankStarted = true
       //makeRandom(ppu.Pixels)
+      //ppu.tv.SetFrame(ppu.Pixels)
       if ppu.CTRL.NMIonVBlank {
         ppu.CPU.nmiRequested = true
       }
@@ -70,7 +72,7 @@ func (ppu *PPU) tickPreScanline() {
     ppu.STATUS.SpriteOverflow = false
 
   } else if dot >= 280 && dot <= 304 {
-    if ppu.MASK.shoudlRender() {
+    if ppu.MASK.shouldRender() {
       ppu.ADDR.TransferY()
     }
   }
@@ -83,29 +85,45 @@ func (ppu *PPU) tickVisibleScanline() {
   dot := ppu.Dot
 
   // Background evaluation
-  if !ppu.MASK.shoudlRender() {
+  if !ppu.MASK.shouldRender() {
     return
   }
 
-  if (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 340) {
+  if dot >= 2 && dot <= 255 {
     ppu.RenderSinglePixel()
+  }
 
-    switch ppu.Dot % 8 {
+  if (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 340) {
+     ppu.tileData <<= 4
+     switch dot % 8 {
       case 1:
-        ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
-        ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
-      case 2:
-        ppu.NameTableLatch = ppu.Read8(ppu.ADDR.NameTableAddr())
-      case 4:
-        ppu.AttrTableLatch = ppu.Read8(ppu.ADDR.AttrTableAddr())
+        ppu.fetchNameTableByte()
+      case 3:
+        //ppu.fetchAttributeTableByte()
       case 5:
-        //log.Printf("Low bg tile addr %x", ppu.LowBGTileAddr())
-        ppu.BgLatchLow = ppu.Read8(ppu.LowBGTileAddr())
-        //log.Printf("LathLow %x", ppu.BgLatchLow)
+        ppu.fetchLowTileByte()
       case 7:
-        //log.Printf("Low bg tile addr %x", ppu.HighBGTileAddr())
-        ppu.BgLatchHigh = ppu.Read8(ppu.HighBGTileAddr())
-    }
+        ppu.fetchHighTileByte()
+      case 0:
+        ppu.storeTileData()
+      }
+    //switch ppu.Dot % 8 {
+    //  case 1:
+    //    ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
+    //    ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
+    //    ppu.storeTileData()
+    //  case 2:
+    //    ppu.NameTableLatch = ppu.Read8(ppu.ADDR.NameTableAddr())
+    //  case 4:
+    //    ppu.AttrTableLatch = ppu.Read8(ppu.ADDR.AttrTableAddr())
+    //  case 5:
+    //    //log.Printf("Low bg tile addr %x", ppu.LowBGTileAddr())
+    //    ppu.BgLatchLow = ppu.Read8(ppu.LowBGTileAddr())
+    //    //log.Printf("LathLow %x", ppu.BgLatchLow)
+    //  case 7:
+    //    //log.Printf("Low bg tile addr %x", ppu.HighBGTileAddr())
+    //    ppu.BgLatchHigh = ppu.Read8(ppu.HighBGTileAddr())
+    //}
   }
 
   // Sprite evaluation
@@ -126,28 +144,91 @@ func (ppu *PPU) tickVisibleScanline() {
     ppu.ADDR.TransferX()
   }
 
-  if dot >= 1 && dot % 8 == 0 {
+  fetchCycle := (dot >= 321 && dot <= 336) || (dot >= 1 && dot <= 256)
+  if fetchCycle && dot % 8 == 0 {
     ppu.ADDR.IncrementCoarseX()
   }
 
 }
 
+func (ppu *PPU) storeTileData() {
+  var data uint32
+  for i := 0; i < 8; i++ {
+    //a := ppu.attributeTableByte
+    p1 := (ppu.lowTileByte & 0x80) >> 7
+    p2 := (ppu.highTileByte & 0x80) >> 6
+    ppu.lowTileByte <<= 1
+    ppu.highTileByte <<= 1
+    data <<= 4
+    //data |= uint32(a | p1 | p2)
+    data |= uint32(p1 | p2)
+  }
+  ppu.tileData |= uint64(data)
+}
+
+func (ppu *PPU) fetchTileData() uint32 {
+  return uint32(ppu.tileData >> 32)
+}
+
+func (ppu *PPU) backgroundPixel() byte {
+  //data := ppu.fetchTileData() >> ((7 - ppu.x) * 4)
+  data := ppu.fetchTileData()
+  //log.Printf("BG Pixel %x", data)
+  return byte(data & 0x0F)
+}
+
+func (ppu *PPU) fetchNameTableByte() {
+  v := ppu.ADDR.VAddr
+  address := 0x2000 | (v & 0x0FFF)
+  ppu.nameTableByte = ppu.Read8(address)
+}
+
+
+func (ppu *PPU) fetchLowTileByte() {
+  fineY := (ppu.ADDR.VAddr >> 12) & 7
+  table := 1//ppu.flagBackgroundTable
+  tile := ppu.nameTableByte
+  address := 0x1000*uint16(table) + uint16(tile)*16 + fineY
+  ppu.lowTileByte = ppu.Read8(address)
+}
+
+func (ppu *PPU) fetchHighTileByte() {
+  fineY := (ppu.ADDR.VAddr >> 12) & 7
+  table := 1//ppu.flagBackgroundTable
+  tile := ppu.nameTableByte
+  address := 0x1000*uint16(table) + uint16(tile)*16 + fineY
+  ppu.highTileByte = ppu.Read8(address + 8)
+}
+
+
+
 func (ppu *PPU) RenderSinglePixel() {
   line := ppu.Scanline
   dot := ppu.Dot
 
-    test := ((ppu.BgTileShiftHigh >> 15) << 1) | (ppu.BgTileShiftLow >> 15)
-    v := uint8((80 * test) & 0xff)
+  //log.Printf("Rendering line %v dot %v", line, dot)
 
-    //ppu.Pixels[line * 255 + dot] = 60*uint8(test)
-    if line >= 0 && line <= 239 {
-      //v := uint8(rand.Uint32() & 0x03)
-      //vv := v << 6 | v << 4 | v << 2 | 0x3
-      ppu.Pixels[4*(line * 255 + dot) + 0] = v
-      ppu.Pixels[4*(line * 255 + dot) + 1] = v
-      ppu.Pixels[4*(line * 255 + dot) + 2] = v
-      ppu.Pixels[4*(line * 255 + dot) + 3] = 0xff
-    }
+  //test := ((ppu.BgTileShiftHigh >> 15) << 1) | (ppu.BgTileShiftLow >> 15)
+  //v := uint8((80 * test) & 0xff)
+
+  //if line < 50 {
+  //  v = 0xff
+  //} else {
+  //  v = 0x00
+  //}
+  //v = uint8(80 * (test & 0xff))
+  v := 80*ppu.backgroundPixel()
+  log.Printf("Will render val %x", v)
+
+  //ppu.Pixels[line * 255 + dot] = 60*uint8(test)
+  //if line >= 0 && line <= 239 {
+    //v := 80 * uint8(rand.Uint32() & 0x03)
+    //vv := v << 6 | v << 4 | v << 2 | 0x3
+    ppu.Pixels[3*(line * 256 + dot) + 0] = v
+    ppu.Pixels[3*(line * 256 + dot) + 1] = v
+    ppu.Pixels[3*(line * 256 + dot) + 2] = v
+    //ppu.Pixels[4*(line * 255 + dot) + 3] = 0xff
+  //}
 
   //if line >= 0 && line <= 239 {
   //  //ppu.Pixels[(line * 256 + dot + 0)] = 40*uint8(test)
