@@ -69,21 +69,24 @@ func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
     case AddrModeIndirect:
       //address = cpu.Read16(cpu.Read16(cpu.PC + 1))
       m := cpu.mem.Read16(cpu.regs.PC + 1)
-      return cpu.mem.Read16(m)
+      //return cpu.mem.Read16(m)
+      return cpu.read16bug(m)
 
     case AddrModeXIndirect:
       //address = cpu.Read16(uint16(cpu.Read(cpu.PC+1) + cpu.X))
       m := cpu.mem.Read8(cpu.regs.PC + 1)
       x := cpu.regs.X
       //return uint16(cpu.mem.Read8(uint16(m + x)))
-      return cpu.mem.Read16(uint16(m + x))
+      //return cpu.mem.Read16(uint16(m + x))
+      return cpu.read16bug(uint16(m + x))
 
     case AddrModeIndirectY:
       //address = cpu.Read16(uint16(cpu.Read(cpu.PC+1))) + uint16(cpu.Y)
       m := cpu.mem.Read8(cpu.regs.PC + 1)
       y := cpu.regs.Y
       //return uint16(cpu.mem.Read8(uint16(m)) + y)
-      return cpu.mem.Read16(uint16(m)) + uint16(y)
+      //return cpu.mem.Read16(uint16(m)) + uint16(y)
+      return cpu.read16bug(uint16(m)) + uint16(y)
 
     case AddrModeZeroPage:
       return uint16(cpu.mem.Read8(cpu.regs.PC + 1))

@@ -51,6 +51,14 @@ func MakeCPU(addrSpace AddrSpace) *CPU {
   }
 }
 
+func (cpu *CPU) read16bug(address uint16) uint16 {
+  a := address
+  b := (a & 0xFF00) | uint16(byte(a)+1)
+  lo := cpu.mem.Read8(a)
+  hi := cpu.mem.Read8(b)
+  return uint16(hi)<<8 | uint16(lo)
+}
+
 func (cpu *CPU) PowerUp() {
   // Set PC to the reset interrupt vector
   cpu.regs.PC = cpu.mem.Read16(0xfffc)
