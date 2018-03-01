@@ -50,15 +50,21 @@ func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
       return cpu.regs.PC + 1
 
     case AddrModeRelative:
-      // Treat operand as signed int8 encoded as two's complement
-      m := cpu.mem.Read8(cpu.regs.PC + 1)
-      if (m >> 7) == 0x1 {
-        return cpu.regs.PC + 2 + uint16(m) - 0x100
-        //return cpu.regs.PC +  uint16(m) - 0x100
+      offset := uint16(cpu.mem.Read8(cpu.regs.PC + 1))
+      if offset < 0x80 {
+        return cpu.regs.PC + 2 + offset
       } else {
-        return cpu.regs.PC + 2 + uint16(m)
-        //return cpu.regs.PC + uint16(m)
+        return cpu.regs.PC + 2 + offset - 0x100
       }
+      // Treat operand as signed int8 encoded as two's complement
+      //m := cpu.mem.Read8(cpu.regs.PC + 1)
+      //if (m >> 7) == 0x1 {
+      //  return cpu.regs.PC + 2 + uint16(m) - 0x100
+      //  //return cpu.regs.PC +  uint16(m) - 0x100
+      //} else {
+      //  return cpu.regs.PC + 2 + uint16(m)
+      //  //return cpu.regs.PC + uint16(m)
+      //}
 
     case AddrModeIndirect:
       //address = cpu.Read16(cpu.Read16(cpu.PC + 1))
@@ -137,7 +143,7 @@ func asl(cpu *CPU, addrMode addressingMode) {
 // Logical shift right
 func lsr(cpu *CPU, addrMode addressingMode) {
   shiftR := func (v uint8) uint8 {
-    cpu.setOrReset(StatusFlagC, v & 0x1 != 1)
+    cpu.setOrReset(StatusFlagC, v & 0x1 == 0x1)
     v = v >> 1
     setOrResetNZ(v, cpu)
     return v
@@ -154,44 +160,32 @@ func lsr(cpu *CPU, addrMode addressingMode) {
 // Add with carry
 func adc(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
-  m := cpu.mem.Read8(addr)
-
-  var v uint16
+  a := cpu.regs.A
+  b := cpu.mem.Read8(addr)
+  var c uint8 = 0
   if cpu.getFlag(StatusFlagC) {
-    v = uint16(cpu.regs.A) + uint16(m)
-  } else {
-    v = uint16(cpu.regs.A) + uint16(m) - 1
+    c = 1
   }
+  cpu.regs.A = a + b + c
+  setOrResetNZ(cpu.regs.A, cpu)
 
-  cpu.setOrReset(StatusFlagC, v > 0xff)
-  cpu.setOrReset(StatusFlagZ, v == 0x00)
-  cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
-
-  isneg := func(n uint8) bool {
-    return (n >> 7) == 0x1
-  }
-  // http://sandbox.mc.edu/~bennet/cs110/tc/orules.html
-  var overflowed bool
-  if isneg(cpu.regs.A) && isneg(m) && !isneg(uint8(v & 0xff)) {
-    overflowed = true
-  } else if !isneg(cpu.regs.A) && !isneg(m) && isneg(uint8(v & 0xff)) {
-    overflowed = true
-  } else {
-    overflowed = false
-  }
-
-  cpu.setOrReset(StatusFlagV, overflowed)
-
-  //log.Fatalf("m: %v; A: %v", int(m), int(cpu.regs.A))
-  cpu.regs.A = uint8(v & 0xff)
+  cpu.setOrReset(StatusFlagC, int(a)+int(b)+int(c) > 0xFF)
+  cpu.setOrReset(StatusFlagV, (a^b)&0x80 == 0 && (a^cpu.regs.A)&0x80 != 0)
 }
 
-// Subtract with carry
 func sbc(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
-  m := cpu.mem.Read8(addr)
-  cpu.mem.Write8(addr, uint8((256 - uint16(m)) & 0xff))
-  adc(cpu, addrMode)
+  a := cpu.regs.A
+  b := cpu.mem.Read8(addr)
+  var c uint8 = 0
+  if cpu.getFlag(StatusFlagC) {
+    c = 1
+  }
+  cpu.regs.A = a - b - (1 - c)
+  setOrResetNZ(cpu.regs.A, cpu)
+
+  cpu.setOrReset(StatusFlagC, int(a)-int(b)-int(1-c) >= 0x00)
+  cpu.setOrReset(StatusFlagV, (a^b)&0x80 != 0 && (a^cpu.regs.A)&0x80 != 0)
 }
 
 // Push processor state
@@ -208,7 +202,7 @@ func pha(cpu *CPU, addrMode addressingMode) {
 
 // Pull processor state
 func plp(cpu *CPU, addrMode addressingMode) {
-  cpu.regs.P = cpu.Pop8()
+  cpu.regs.P = cpu.Pop8()&0xEF | 0x20
 }
 
 func pla(cpu *CPU, addrMode addressingMode) {
@@ -250,7 +244,7 @@ func jsr(cpu *CPU, addrMode addressingMode) {
 
 // Return from interrupt
 func rti(cpu *CPU, addrMode addressingMode) {
-  cpu.regs.P = cpu.Pop8()
+  cpu.regs.P = cpu.Pop8()&0xEF | 0x20
   cpu.regs.PC = cpu.Pop16()
   cpu.jumped = true
 }
@@ -281,10 +275,13 @@ func bit(cpu *CPU, addrMode addressingMode) {
 // Rotate left
 func rol(cpu *CPU, addrMode addressingMode) {
   inner := func (v uint8) uint8 {
-    v = (v << 1) | (v >> 7)
+    var c uint8 = 0
+    if cpu.getFlag(StatusFlagC) {
+      c = 1
+    }
     cpu.setOrReset(StatusFlagC, (v >> 7) & 0x1 == 0x1)
-    cpu.setOrReset(StatusFlagZ, v == 0)
-    cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
+    v = (v << 1) | c
+    setOrResetNZ(v, cpu)
     return v
   }
 
@@ -299,10 +296,13 @@ func rol(cpu *CPU, addrMode addressingMode) {
 // Rotate right
 func ror(cpu *CPU, addrMode addressingMode) {
   inner := func (v uint8) uint8 {
-    v = (v >> 1) | ((v & 0x1) << 7)
+    var c uint8 = 0
+    if cpu.getFlag(StatusFlagC) {
+      c = 1
+    }
     cpu.setOrReset(StatusFlagC, v & 0x1 == 0x1)
-    cpu.setOrReset(StatusFlagZ, v == 0)
-    cpu.setOrReset(StatusFlagN, v >> 7 == 0x1)
+    v = (v >> 1) | (c << 7)
+    setOrResetNZ(v, cpu)
     return v
   }
 
@@ -338,7 +338,7 @@ func bmi(cpu *CPU, addrMode addressingMode) {
 
 // Branch if equal
 func beq(cpu *CPU, addrMode addressingMode) {
-  if !cpu.getFlag(StatusFlagZ) {
+  if cpu.getFlag(StatusFlagZ) {
     cpu.regs.PC = calculateAddr(cpu, addrMode)
     cpu.jumped = true
   }
@@ -525,6 +525,5 @@ func tya(cpu *CPU, addrMode addressingMode) {
 }
 func txs(cpu *CPU, addrMode addressingMode) {
   cpu.regs.SP = cpu.regs.X
-  setOrResetNZ(cpu.regs.X, cpu)
 }
 

@@ -1,6 +1,7 @@
 package awesomenes
 
 import (
+  "log"
   "io/ioutil"
 )
 
@@ -40,15 +41,16 @@ func ReadROM(path string) *Rom {
   }
 
   if header.MapperN != 0 {
-    panic("Only mapper type 0 is supported so far: " + string(header.MapperN));
+    log.Printf("Only mapper type 0 is supported so far (requested %x)", header.MapperN);
   }
 
   if header.NPRGROMBanks != 2 {
-    panic("Only 2 prg rom banks supported")
+    log.Printf("Only 2 prg rom banks supported (found %x)", header.NPRGROMBanks)
+    //header.NPRGROMBanks = 2
   }
 
   if header.NCHRROMBanks != 1 {
-    panic("Only 1 chr rom banks supported")
+    log.Printf("Only 1 chr rom banks supported (found %x)", header.NCHRROMBanks)
   }
 
   var (

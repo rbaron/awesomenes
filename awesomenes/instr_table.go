@@ -38,7 +38,7 @@ var instrTable = map[uint8]*instr {
   0x10: &instr{ name: "BPL", size: 2, cycles: 2, fn: bpl, addrMode: AddrModeRelative, },
   0x00: &instr{ name: "BRK", size: 1, cycles: 7, fn: brk, addrMode: AddrModeImplied, },
   0x50: &instr{ name: "BVC", size: 2, cycles: 2, fn: bvc, addrMode: AddrModeRelative, },
-  0x70: &instr{ name: "BVS", size: 2, cycles: 2, fn: bvc, addrMode: AddrModeRelative, },
+  0x70: &instr{ name: "BVS", size: 2, cycles: 2, fn: bvs, addrMode: AddrModeRelative, },
 
   0x18: &instr{ name: "CLC", size: 1, cycles: 2, fn: clc, addrMode: AddrModeImplied, },
   0xd8: &instr{ name: "CLD", size: 1, cycles: 2, fn: cld, addrMode: AddrModeImplied, },
@@ -166,9 +166,9 @@ var instrTable = map[uint8]*instr {
   0x96: &instr{ name: "STX", size: 2, cycles: 4, fn: stx, addrMode: AddrModeZeroY, },
   0x8e: &instr{ name: "STX", size: 3, cycles: 4, fn: stx, addrMode: AddrModeAbs, },
 
-  0x84: &instr{ name: "STY", size: 2, cycles: 3, fn: stx, addrMode: AddrModeZeroPage, },
-  0x94: &instr{ name: "STY", size: 2, cycles: 4, fn: stx, addrMode: AddrModeZeroX, },
-  0x8c: &instr{ name: "STY", size: 3, cycles: 4, fn: stx, addrMode: AddrModeAbs, },
+  0x84: &instr{ name: "STY", size: 2, cycles: 3, fn: sty, addrMode: AddrModeZeroPage, },
+  0x94: &instr{ name: "STY", size: 2, cycles: 4, fn: sty, addrMode: AddrModeZeroX, },
+  0x8c: &instr{ name: "STY", size: 3, cycles: 4, fn: sty, addrMode: AddrModeAbs, },
 
   0xaa: &instr{ name: "TAX", size: 1, cycles: 2, fn: tax, addrMode: AddrModeImplied, },
   0xa8: &instr{ name: "TAY", size: 1, cycles: 2, fn: tay, addrMode: AddrModeImplied, },

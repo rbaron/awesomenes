@@ -40,7 +40,7 @@ func MakeCPUAddrSpace(rom *Rom, ppu *PPU) *CPUAddrSpace {
 //http://wiki.nesdev.com/w/index.php/CPU_memory_map
 //https://wiki.nesdev.com/w/index.php/NROM (Hard coded mapper 0 for now)
 func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
-
+  //log.Printf("Reading CPU space %x", addr)
   switch {
     case addr >= 0 && addr < 0x2000:
       // 0x0800 - 0x1fff mirrors 0x0000 - 0x07ff three times
@@ -85,7 +85,7 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
     // ROM PRG banks
     case addr >= 0x8000:
       // SRAM mirrorred every 0x800 bytes
-      return as.ROM.PRGROM.Read8(addr - 0x8000)
+      return as.ROM.PRGROM.Read8((addr - 0x8000) % 0x4000)
 
     default:
       log.Fatalf("Invalid read from CPU mem space at %x", addr)
@@ -97,6 +97,9 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
 
   switch {
     case addr >= 0 && addr < 0x2000:
+      if addr == 0x02 || addr == 0x03 {
+        log.Printf("WROTE LOG %x at %x", v, addr)
+      }
       // 0x0800 - 0x1fff mirrors 0x0000 - 0x07ff three times
       as.RAM.Write8(addr % 0x800, v)
 
@@ -156,7 +159,7 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
     // PRGRAM mirrorred every 0x800 bytes
     // No CHR RAM for now
     case addr >= 0x6000 && addr < 0x8000:
-      log.Printf("Writing to SRAM at %x", addr)
+      log.Printf("Writing to PRGRAM at %x", addr)
       as.ROM.PRGRAM.Write8((addr - 0x6000) % 0x800, v)
       //as.ROM.PRGRAM.Write8(addr - 0x6000, v)
 

@@ -56,6 +56,8 @@ func (cpu *CPU) PowerUp() {
   cpu.regs.PC = cpu.mem.Read16(0xfffc)
   cpu.regs.SP = 0xfd
   cpu.regs.P  = 0x24
+
+  cpu.regs.PC = 0xc000
 }
 
 func (cpu *CPU) Run() int {
