@@ -105,7 +105,7 @@ func (cpu *CPU) doNMI() {
   //cpu.jumped = true
 }
 
-// Same format as the awesome github.com/fogleman/nes for debugging
+// Same format as the logs for nestest and the awesome github.com/fogleman/nes for debugging
 func (cpu *CPU) String() string {
   opcode := cpu.mem.Read8(cpu.regs.PC)
   instr := instrTable[opcode]

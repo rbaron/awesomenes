@@ -37,7 +37,7 @@ func MakeTV() *TV {
 
   texture, err := renderer.CreateTexture(
     //sdl.PIXELFORMAT_ARGB8888, sdl.TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT)
-    sdl.PIXELFORMAT_RGB888, sdl.TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT)
+    sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT)
 
 	if err != nil {
 		panic(err)
@@ -54,7 +54,7 @@ func MakeTV() *TV {
 
 func (tv *TV) SetFrame(pixels []byte) {
   //log.Printf("WIll set frame")
-  tv.texture.Update(nil, pixels, SCREEN_WIDTH * 3)
+  tv.texture.Update(nil, pixels, SCREEN_WIDTH * 4)
 }
 
 func (tv *TV) ShowPixels() {

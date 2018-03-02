@@ -9,7 +9,6 @@ type AddrSpace interface {
   Write8(addr uint16, v uint8)
 
   Read16(addr uint16) uint16
-  Read16Bug(addr uint16) uint16
   Write16(addr uint16, v uint16)
 }
 
@@ -49,21 +48,22 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
     // PPU registers
     case addr >= 0x2000 && addr < 0x4000:
       //log.Printf("Reading PPUADDR %x", 0x2000 + addr % 8)
-      switch 0x2000 + addr % 8 {
-        case 0x2002:
-          as.PPU.ADDR.SetOnSTATUSRead()
-          return as.PPU.STATUS.Get()
+      return as.PPU.readRegister(0x2000 + addr%8)
+      //switch 0x2000 + addr % 8 {
+      //  case 0x2002:
+      //    as.PPU.ADDR.SetOnSTATUSRead()
+      //    return as.PPU.STATUS.Get()
 
-        case 0x2004:
-          return as.PPU.ReadOAMData()
+      //  case 0x2004:
+      //    return as.PPU.ReadOAMData()
 
-        case 0x2007:
-          return as.PPU.ReadData()
+      //  case 0x2007:
+      //    return as.PPU.ReadData()
 
-        default:
-          log.Fatalf("Invalid read from CPU mem space at %x", addr)
-          return 0
-      }
+      //  default:
+      //    log.Fatalf("Invalid read from CPU mem space at %x", addr)
+      //    return 0
+      //}
 
     case addr == 0x4015:
         log.Printf("Not yet handled read to APU at %x", addr)
@@ -85,7 +85,8 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
     // ROM PRG banks
     case addr >= 0x8000:
       // SRAM mirrorred every 0x800 bytes
-      return as.ROM.PRGROM.Read8((addr - 0x8000) % 0x4000)
+      //return as.ROM.PRGROM.Read8((addr - 0x8000) % 0x4000)
+      return as.ROM.PRGROM.Read8(addr - 0x8000)
 
     default:
       log.Fatalf("Invalid read from CPU mem space at %x", addr)
@@ -97,55 +98,57 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
 
   switch {
     case addr >= 0 && addr < 0x2000:
-      if addr == 0x02 || addr == 0x03 {
-        log.Printf("WROTE LOG %x at %x", v, addr)
-      }
+      //if addr == 0x02 || addr == 0x03 {
+      //  log.Printf("WROTE LOG %x at %x", v, addr)
+      //}
       // 0x0800 - 0x1fff mirrors 0x0000 - 0x07ff three times
       as.RAM.Write8(addr % 0x800, v)
 
     // PPU registers
     case addr >= 0x2000 && addr < 0x4000:
-      as.PPU.STATUS.LastWrite = v
+      //as.PPU.STATUS.LastWrite = v
 
+      as.PPU.writeRegister(0x2000+addr%8, v)
       //log.Printf("Writing PPUADDR %x: %b", addr, v)
-      switch 0x2000 + addr % 8 {
-        case 0x2000:
-          as.PPU.CTRL.Set(v)
-          as.PPU.ADDR.SetOnCTRLWrite(v)
+      //switch 0x2000 + addr % 8 {
+      //  case 0x2000:
+      //    as.PPU.CTRL.Set(v)
+      //    as.PPU.ADDR.SetOnCTRLWrite(v)
 
-        case 0x2001:
-          as.PPU.MASK.Set(v)
+      //  case 0x2001:
+      //    as.PPU.MASK.Set(v)
 
-        case 0x2003:
-          as.PPU.OAMADDR = v
+      //  case 0x2003:
+      //    as.PPU.OAMADDR = v
 
-        case 0x2004:
-          as.PPU.WriteOAMData(v)
+      //  case 0x2004:
+      //    as.PPU.WriteOAMData(v)
 
-        case 0x2005:
-          as.PPU.ADDR.SetOnSCROLLWrite(v)
-          as.PPU.SCRL.Write(v)
+      //  case 0x2005:
+      //    as.PPU.ADDR.SetOnSCROLLWrite(v)
+      //    as.PPU.SCRL.Write(v)
 
-        case 0x2006:
-          as.PPU.ADDR.Write(v)
+      //  case 0x2006:
+      //    as.PPU.ADDR.Write(v)
 
-        case 0x2007:
-          as.PPU.WriteData(v)
+      //  case 0x2007:
+      //    as.PPU.WriteData(v)
 
-        default:
-          log.Fatalf("Invalid write to CPU mem space at %x", addr)
-      }
+      //  default:
+      //    log.Fatalf("Invalid write to CPU mem space at %x", addr)
+      //}
 
     case addr >= 0x4000 && addr <= 0x4013:
       log.Printf("Not yet handled write to APU at %x", addr)
 
     case addr == 0x4014:
       //Might need change with mapper
-      data  := make([]uint8, 256)
-      for i := range(data) {
-        data[i] = as.Read8(uint16(v) << 8 + uint16(i))
-      }
-      as.PPU.OMADMA(data)
+      //data  := make([]uint8, 256)
+      //for i := range(data) {
+      //  data[i] = as.Read8(uint16(v) << 8 + uint16(i))
+      //}
+      //as.PPU.OMADMA(data)
+      as.PPU.writeRegister(0x2000+addr%8, v)
 
     case addr == 0x4015:
       log.Printf("Not yet handled write to APU at %x", addr)
@@ -175,14 +178,6 @@ func (as *CPUAddrSpace) Read16(addr uint16) uint16 {
   lo := uint16(as.Read8(addr))
   hi := uint16(as.Read8(addr + 1))
   return (hi << 8) + lo
-}
-
-func (as *CPUAddrSpace) Read16Bug(addr uint16) uint16 {
-  a := addr
-  b := (a & 0xFF00) | uint16(byte(a)+1)
-  lo := as.Read8(a)
-  hi := as.Read8(b)
-  return uint16(hi)<<8 | uint16(lo)
 }
 
 func (as *CPUAddrSpace) Write16(addr uint16, v uint16) {
