@@ -524,7 +524,96 @@ import (
   "math"
 )
 
+// MINE
+
+func addrSetter(v uint8, bitN uint8, ifNotSet uint16, ifSet uint16) uint16 {
+  if v & (0x1 << bitN) == 0 { return ifNotSet } else { return ifSet }
+}
+
+func boolSetter(v uint8, bitN uint8, ifNotSet bool, ifSet bool) bool {
+  if v & (0x1 << bitN) == 0 { return ifNotSet } else { return ifSet }
+}
+
+// PPUCTRL
+
+const (
+  SPRITE_SIZE_8    = false
+  SPRITE_SIZE_16   = true
+  MS_READ_EXT      = false
+  MS_WRITE_EXT     = true
+)
+
+type PPUCTRL struct {
+  NameTableAddr        uint16
+  VRAMReadIncrement    uint16
+  // Addr for 8x8 sprites only (ignored for 16x16)
+  SpritePatTableAddr   uint16
+  BgTableAddr          uint16
+  SpriteSize           bool
+  MasterSlave          bool
+  NMIonVBlank          bool
+}
+
+//func (ppu *PPU) writeControl(value byte) {
+//  //log.Printf("WROTE CONTROL %b", value)
+//	ppu.flagNameTable = (value >> 0) & 3
+//	ppu.flagIncrement = (value >> 2) & 1
+//	ppu.flagSpriteTable = (value >> 3) & 1
+//	ppu.flagBackgroundTable = (value >> 4) & 1
+//	ppu.flagSpriteSize = (value >> 5) & 1
+//	ppu.flagMasterSlave = (value >> 6) & 1
+//	ppu.nmiOutput = (value>>7)&1 == 1
+//	ppu.nmiChange()
+//	// t: ....BA.. ........ = d: ......BA
+//	ppu.t = (ppu.t & 0xF3FF) | ((uint16(value) & 0x03) << 10)
+//}
+
+	//0-1flagNameTable       byte // 0: $2000; 1: $2400; 2: $2800; 3: $2C00
+	//2flagIncrement       byte // 0: add 1; 1: add 32
+	//3flagSpriteTable     byte // 0: $0000; 1: $1000; ignored in 8x16 mode
+	//4flagBackgroundTable byte // 0: $0000; 1: $1000
+	//5flagSpriteSize      byte // 0: 8x8; 1: 8x16
+	//6flagMasterSlave     byte // 0: read EXT; 1: write EXT
+
+func (ctrl *PPUCTRL) Set(v uint8) {
+  //log.Printf("WROTE CONTROL %b", v)
+  // TODO set temp addr?
+  switch v & 0x3 {
+    case 0x0:
+      ctrl.NameTableAddr = 0x2000
+    case 0x1:
+      ctrl.NameTableAddr = 0x2400
+    case 0x2:
+      ctrl.NameTableAddr = 0x2800
+    case 0x3:
+      ctrl.NameTableAddr = 0x2c00
+  }
+
+  ctrl.VRAMReadIncrement  = addrSetter(v, 2, 0x0001, 0x0020)
+  ctrl.SpritePatTableAddr = addrSetter(v, 3, 0x0000, 0x1000)
+  ctrl.BgTableAddr        = addrSetter(v, 4, 0x0000, 0x1000)
+  ctrl.SpriteSize         = boolSetter(v, 5, SPRITE_SIZE_8, SPRITE_SIZE_16)
+  ctrl.MasterSlave        = boolSetter(v, 6, MS_READ_EXT, MS_WRITE_EXT)
+  ctrl.NMIonVBlank        = boolSetter(v, 7, false, true)
+}
+
+//func (ppu *PPU) LowBGTileAddr() uint16 {
+//  return ppu.CTRL.BgTableAddr + uint16(ppu.NameTableLatch) * 16 + ppu.ADDR.FineY()
+//}
+
+//func (ppu *PPU) HighBGTileAddr() uint16 {
+//  return ppu.LowBGTileAddr() + 8
+//}
+
+// ENDOF MINE
+
 type PPU struct {
+
+  // MINE
+  CTRL *PPUCTRL
+
+  // ENDOF MINE
+
 	//Memory           // memory interface
 	//console *Console // reference to parent object
   CPU *CPU
@@ -554,7 +643,7 @@ type PPU struct {
 
 	// NMI flags
 	nmiOccurred bool
-	nmiOutput   bool
+	//nmiOutput   bool
 	nmiPrevious bool
 	nmiDelay    byte
 
@@ -573,12 +662,12 @@ type PPU struct {
 	spriteIndexes    [8]byte
 
 	// $2000 PPUCTRL
-	flagNameTable       byte // 0: $2000; 1: $2400; 2: $2800; 3: $2C00
-	flagIncrement       byte // 0: add 1; 1: add 32
-	flagSpriteTable     byte // 0: $0000; 1: $1000; ignored in 8x16 mode
-	flagBackgroundTable byte // 0: $0000; 1: $1000
-	flagSpriteSize      byte // 0: 8x8; 1: 8x16
-	flagMasterSlave     byte // 0: read EXT; 1: write EXT
+	//flagNameTable       byte // 0: $2000; 1: $2400; 2: $2800; 3: $2C00
+	//flagIncrement       byte // 0: add 1; 1: add 32
+	//flagSpriteTable     byte // 0: $0000; 1: $1000; ignored in 8x16 mode
+	//flagBackgroundTable byte // 0: $0000; 1: $1000
+	//flagSpriteSize      byte // 0: 8x8; 1: 8x16
+	//flagMasterSlave     byte // 0: read EXT; 1: write EXT
 
 	// $2001 PPUMASK
 	flagGrayscale          byte // 0: color; 1: grayscale
@@ -604,7 +693,11 @@ type PPU struct {
 //func NewPPU(console *Console) *PPU {
 func NewPPU(cpu *CPU, rom *Rom) *PPU {
 	//ppu := PPU{Memory: NewPPUMemory(console), console: console}
-	ppu := PPU{CPU: cpu, rom: rom}
+	ppu := PPU{
+    CPU: cpu,
+    rom: rom,
+    CTRL: &PPUCTRL{},
+  }
 	ppu.front = image.NewRGBA(image.Rect(0, 0, 256, 240))
 	ppu.back = image.NewRGBA(image.Rect(0, 0, 256, 240))
   ppu.Pixels = make([]byte, 4 * 256 * 240)
@@ -626,7 +719,7 @@ func (ppu *PPU) Save(encoder *gob.Encoder) error {
 	encoder.Encode(ppu.f)
 	encoder.Encode(ppu.register)
 	encoder.Encode(ppu.nmiOccurred)
-	encoder.Encode(ppu.nmiOutput)
+	//encoder.Encode(ppu.nmiOutput)
 	encoder.Encode(ppu.nmiPrevious)
 	encoder.Encode(ppu.nmiDelay)
 	encoder.Encode(ppu.nameTableByte)
@@ -639,12 +732,12 @@ func (ppu *PPU) Save(encoder *gob.Encoder) error {
 	encoder.Encode(ppu.spritePositions)
 	encoder.Encode(ppu.spritePriorities)
 	encoder.Encode(ppu.spriteIndexes)
-	encoder.Encode(ppu.flagNameTable)
-	encoder.Encode(ppu.flagIncrement)
-	encoder.Encode(ppu.flagSpriteTable)
-	encoder.Encode(ppu.flagBackgroundTable)
-	encoder.Encode(ppu.flagSpriteSize)
-	encoder.Encode(ppu.flagMasterSlave)
+	//encoder.Encode(ppu.flagNameTable)
+	//encoder.Encode(ppu.flagIncrement)
+	//encoder.Encode(ppu.flagSpriteTable)
+	//encoder.Encode(ppu.flagBackgroundTable)
+	//encoder.Encode(ppu.flagSpriteSize)
+	//encoder.Encode(ppu.flagMasterSlave)
 	encoder.Encode(ppu.flagGrayscale)
 	encoder.Encode(ppu.flagShowLeftBackground)
 	encoder.Encode(ppu.flagShowLeftSprites)
@@ -674,7 +767,7 @@ func (ppu *PPU) Load(decoder *gob.Decoder) error {
 	decoder.Decode(&ppu.f)
 	decoder.Decode(&ppu.register)
 	decoder.Decode(&ppu.nmiOccurred)
-	decoder.Decode(&ppu.nmiOutput)
+	//decoder.Decode(&ppu.nmiOutput)
 	decoder.Decode(&ppu.nmiPrevious)
 	decoder.Decode(&ppu.nmiDelay)
 	decoder.Decode(&ppu.nameTableByte)
@@ -687,12 +780,12 @@ func (ppu *PPU) Load(decoder *gob.Decoder) error {
 	decoder.Decode(&ppu.spritePositions)
 	decoder.Decode(&ppu.spritePriorities)
 	decoder.Decode(&ppu.spriteIndexes)
-	decoder.Decode(&ppu.flagNameTable)
-	decoder.Decode(&ppu.flagIncrement)
-	decoder.Decode(&ppu.flagSpriteTable)
-	decoder.Decode(&ppu.flagBackgroundTable)
-	decoder.Decode(&ppu.flagSpriteSize)
-	decoder.Decode(&ppu.flagMasterSlave)
+	//decoder.Decode(&ppu.flagNameTable)
+	//decoder.Decode(&ppu.flagIncrement)
+	//decoder.Decode(&ppu.flagSpriteTable)
+	//decoder.Decode(&ppu.flagBackgroundTable)
+	//decoder.Decode(&ppu.flagSpriteSize)
+	//decoder.Decode(&ppu.flagMasterSlave)
 	decoder.Decode(&ppu.flagGrayscale)
 	decoder.Decode(&ppu.flagShowLeftBackground)
 	decoder.Decode(&ppu.flagShowLeftSprites)
@@ -712,7 +805,9 @@ func (ppu *PPU) Reset() {
 	ppu.Cycle = 340
 	ppu.ScanLine = 240
 	ppu.Frame = 0
-	ppu.writeControl(0)
+	//ppu.writeControl(0)
+  ppu.t = (ppu.t & 0xF3FF) | ((uint16(0) & 0x03) << 10)
+  ppu.CTRL.Set(0)
 	ppu.writeMask(0)
 	ppu.writeOAMAddress(0)
 }
@@ -750,7 +845,9 @@ func (ppu *PPU) writeRegister(address uint16, value byte) {
 	ppu.register = value
 	switch address {
 	case 0x2000:
-		ppu.writeControl(value)
+		//ppu.writeControl(value)
+    ppu.CTRL.Set(value)
+    ppu.t = (ppu.t & 0xF3FF) | ((uint16(value) & 0x03) << 10)
 	case 0x2001:
 		ppu.writeMask(value)
 	case 0x2003:
@@ -769,19 +866,19 @@ func (ppu *PPU) writeRegister(address uint16, value byte) {
 }
 
 // $2000: PPUCTRL
-func (ppu *PPU) writeControl(value byte) {
-  //log.Printf("WROTE CONTROL %b", value)
-	ppu.flagNameTable = (value >> 0) & 3
-	ppu.flagIncrement = (value >> 2) & 1
-	ppu.flagSpriteTable = (value >> 3) & 1
-	ppu.flagBackgroundTable = (value >> 4) & 1
-	ppu.flagSpriteSize = (value >> 5) & 1
-	ppu.flagMasterSlave = (value >> 6) & 1
-	ppu.nmiOutput = (value>>7)&1 == 1
-	ppu.nmiChange()
-	// t: ....BA.. ........ = d: ......BA
-	ppu.t = (ppu.t & 0xF3FF) | ((uint16(value) & 0x03) << 10)
-}
+//func (ppu *PPU) writeControl(value byte) {
+//  //log.Printf("WROTE CONTROL %b", value)
+//	ppu.flagNameTable = (value >> 0) & 3
+//	ppu.flagIncrement = (value >> 2) & 1
+//	ppu.flagSpriteTable = (value >> 3) & 1
+//	ppu.flagBackgroundTable = (value >> 4) & 1
+//	ppu.flagSpriteSize = (value >> 5) & 1
+//	ppu.flagMasterSlave = (value >> 6) & 1
+//	ppu.nmiOutput = (value>>7)&1 == 1
+//	ppu.nmiChange()
+//	// t: ....BA.. ........ = d: ......BA
+//	ppu.t = (ppu.t & 0xF3FF) | ((uint16(value) & 0x03) << 10)
+//}
 
 // $2001: PPUMASK
 func (ppu *PPU) writeMask(value byte) {
@@ -877,11 +974,12 @@ func (ppu *PPU) readData() byte {
 		ppu.bufferedData = ppu.Read(ppu.v - 0x1000)
 	}
 	// increment address
-	if ppu.flagIncrement == 0 {
-		ppu.v += 1
-	} else {
-		ppu.v += 32
-	}
+	//if ppu.flagIncrement == 0 {
+	//	ppu.v += 1
+	//} else {
+	//	ppu.v += 32
+	//}
+  ppu.v += ppu.CTRL.VRAMReadIncrement
 	return value
 }
 
@@ -889,11 +987,12 @@ func (ppu *PPU) readData() byte {
 func (ppu *PPU) writeData(value byte) {
   //log.Printf("Wrote PPU data at %x: %x", ppu.v, value)
 	ppu.Write(ppu.v, value)
-	if ppu.flagIncrement == 0 {
-		ppu.v += 1
-	} else {
-		ppu.v += 32
-	}
+	//if ppu.flagIncrement == 0 {
+	//	ppu.v += 1
+	//} else {
+	//	ppu.v += 32
+	//}
+  ppu.v += ppu.CTRL.VRAMReadIncrement
 }
 
 // $4014: OAMDMA
@@ -968,7 +1067,8 @@ func (ppu *PPU) copyY() {
 }
 
 func (ppu *PPU) nmiChange() {
-	nmi := ppu.nmiOutput && ppu.nmiOccurred
+	//nmi := ppu.nmiOutput && ppu.nmiOccurred
+	nmi := ppu.CTRL.NMIonVBlank && ppu.nmiOccurred
 	if nmi && !ppu.nmiPrevious {
 		// TODO: this fixes some games but the delay shouldn't have to be so
 		// long, so the timings are off somewhere
@@ -1131,6 +1231,8 @@ func (ppu *PPU) renderPixel() {
 }
 
 func (ppu *PPU) fetchSpritePattern(i, row int) uint32 {
+  return 0
+  /*
 	tile := ppu.oamData[i*4+1]
 	attributes := ppu.oamData[i*4+2]
 	var address uint16
@@ -1173,9 +1275,11 @@ func (ppu *PPU) fetchSpritePattern(i, row int) uint32 {
 		data |= uint32(a | p1 | p2)
 	}
 	return data
+  */
 }
 
 func (ppu *PPU) evaluateSprites() {
+  /*
 	var h int
 	if ppu.flagSpriteSize == 0 {
 		h = 8
@@ -1204,13 +1308,15 @@ func (ppu *PPU) evaluateSprites() {
 		ppu.flagSpriteOverflow = 1
 	}
 	ppu.spriteCount = count
+  */
 }
 
 // tick updates Cycle, ScanLine and Frame counters
 func (ppu *PPU) tick() {
 	if ppu.nmiDelay > 0 {
 		ppu.nmiDelay--
-		if ppu.nmiDelay == 0 && ppu.nmiOutput && ppu.nmiOccurred {
+		//if ppu.nmiDelay == 0 && ppu.nmiOutput && ppu.nmiOccurred {
+		if ppu.nmiDelay == 0 && ppu.CTRL.NMIonVBlank && ppu.nmiOccurred {
 			//ppu.console.CPU.triggerNMI()
       ppu.CPU.nmiRequested = true
 		}
