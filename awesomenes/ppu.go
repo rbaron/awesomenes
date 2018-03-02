@@ -641,14 +641,24 @@ func (addr *PPUADDR) Write(v uint8) {
 //  addr.WriteHi = false
 //}
 
+//func (ppu *PPU) copyX() {
+//	// hori(v) = hori(t)
+//	// v: .....F.. ...EDCBA = t: .....F.. ...EDCBA
+//	ppu.ADDR.VAddr = (ppu.ADDR.VAddr & 0xFBE0) | (ppu.ADDR.TAddr & 0x041F)
+//}
 // http://wiki.nesdev.com/w/index.php/PPU_scrolling
-//func (addr *PPUADDR) TransferX () {
-//  addr.VAddr = (addr.VAddr & 0xFBE0) | (addr.TAddr & 0x041F)
+func (addr *PPUADDR) TransferX () {
+  addr.VAddr = (addr.VAddr & 0xFBE0) | (addr.TAddr & 0x041F)
+}
+
+//func (ppu *PPU) copyY() {
+//	// vert(v) = vert(t)
+//	// v: .IHGF.ED CBA..... = t: .IHGF.ED CBA.....
+//	ppu.ADDR.VAddr = (ppu.ADDR.VAddr & 0x841F) | (ppu.ADDR.TAddr & 0x7BE0)
 //}
-//
-//func (addr *PPUADDR) TransferY () {
-//  addr.VAddr = (addr.VAddr & 0x841F) | (addr.TAddr & 0x7BE0)
-//}
+func (addr *PPUADDR) TransferY () {
+  addr.VAddr = (addr.VAddr & 0x841F) | (addr.TAddr & 0x7BE0)
+}
 
 //func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
 //  if addr.WriteHi == false {
@@ -668,43 +678,44 @@ func (addr *PPUADDR) Write(v uint8) {
 //}
 
 // http://wiki.nesdev.com/w/index.php/PPU_scrolling#Y_increment
-//func (addr *PPUADDR) IncrementFineY() {
-//  v := addr.VAddr
-//  var y uint16
-//
-//  if (v & 0x7000) != 0x7000 {
-//    v += 0x1000
-//  } else {
-//    //v &= ^0x7000
-//    v &= 0x8FFF
-//    y = (v & 0x03E0) >> 5
-//    if (y == 29) {
-//      y = 0
-//      v ^= 0x0800
-//    } else {
-//      if y == 31 {
-//        y = 0
-//      } else {
-//        y += 1
-//      }
-//    }
-//  }
-//  addr.VAddr  = (v & 0xFC1F) | (y << 5)
-//}
-//
-//// http://wiki.nesdev.com/w/index.php/PPU_scrolling#X_increment
-//func (addr *PPUADDR) IncrementCoarseX() {
-//  v := addr.VAddr
-//
-//  if (v & 0x001F) == 31 {
-//    v &= 0xFFE0
-//    v ^= 0x0400
-//  } else {
-//    v += 1
-//  }
-//
-//  addr.VAddr = v
-//}
+func (addr *PPUADDR) IncrementFineY() {
+  v := addr.VAddr
+  var y uint16
+
+  if (v & 0x7000) != 0x7000 {
+    v += 0x1000
+    addr.VAddr = v
+  } else {
+    //v &= ^0x7000
+    v &= 0x8fff
+    y = (v & 0x03e0) >> 5
+    if (y == 29) {
+      y = 0
+      v ^= 0x0800
+    } else {
+      if y == 31 {
+        y = 0
+      } else {
+        y += 1
+      }
+    }
+    addr.VAddr = (v & 0xfc1f) | (y << 5)
+  }
+}
+
+// http://wiki.nesdev.com/w/index.php/PPU_scrolling#X_increment
+func (addr *PPUADDR) IncrementCoarseX() {
+  v := addr.VAddr
+
+  if (v & 0x001F) == 31 {
+    v &= 0xFFE0
+    v ^= 0x0400
+  } else {
+    v += 1
+  }
+
+  addr.VAddr = v
+}
 
 //func (ppu *PPU) LowBGTileAddr() uint16 {
 //  return ppu.CTRL.BgTableAddr + uint16(ppu.NameTableLatch) * 16 + ppu.ADDR.FineY()
@@ -745,7 +756,7 @@ type PPU struct {
 	// PPU registers
 	//v uint16 // current vram address (15 bit)
 	//t uint16 // temporary vram address (15 bit)
-	x byte   // fine x scroll (3 bit)
+	//x byte   // fine x scroll (3 bit)
 	//w byte   // write toggle (1 bit)
 	f byte   // even/odd frame flag (1 bit)
 
@@ -1473,17 +1484,18 @@ func (ppu *PPU) Step() {
 			}
 		}
 		if preLine && ppu.Cycle >= 280 && ppu.Cycle <= 304 {
-			ppu.copyY()
+			ppu.ADDR.TransferY()
 		}
 		if renderLine {
 			if fetchCycle && ppu.Cycle%8 == 0 {
-				ppu.incrementX()
+				ppu.ADDR.IncrementCoarseX()
 			}
 			if ppu.Cycle == 256 {
-				ppu.incrementY()
+				ppu.ADDR.IncrementFineY()
+        //ppu.incrementY()
 			}
 			if ppu.Cycle == 257 {
-				ppu.copyX()
+        ppu.ADDR.TransferX()
 			}
 		}
 	}
