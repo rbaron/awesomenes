@@ -650,22 +650,22 @@ func (addr *PPUADDR) TransferY () {
   addr.VAddr = (addr.VAddr & 0x841F) | (addr.TAddr & 0x7BE0)
 }
 
-//func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
-//  if addr.WriteHi == false {
-//    //addr.TAddr |= uint16(v >> 3)
-//    //addr.FineXScroll = v & 0x3
-//    addr.WriteHi = true
-//
-//    addr.TAddr = (addr.TAddr & 0xFFE0) | uint16(v)
-//    addr.FineXScroll = v & 0x07
-//  } else {
-//    //addr.TAddr |= uint16(v & 0x03) << 12
-//    //addr.TAddr |= uint16(v & 0xf8) << 2
-//    addr.TAddr = (addr.TAddr & 0x8FFF) | ((uint16(v) & 0x07) << 12)
-//    addr.TAddr = (addr.TAddr & 0xFC1F) | ((uint16(v) & 0xF8) << 2)
-//    addr.WriteHi = false
-//  }
-//}
+func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
+  if addr.WriteHi == false {
+    //addr.TAddr |= uint16(v >> 3)
+    //addr.FineXScroll = v & 0x3
+    addr.WriteHi = true
+
+    addr.TAddr = (addr.TAddr & 0xFFE0) | uint16(v)
+    addr.FineXScroll = v & 0x07
+  } else {
+    //addr.TAddr |= uint16(v & 0x03) << 12
+    //addr.TAddr |= uint16(v & 0xf8) << 2
+    addr.TAddr = (addr.TAddr & 0x8FFF) | ((uint16(v) & 0x07) << 12)
+    addr.TAddr = (addr.TAddr & 0xFC1F) | ((uint16(v) & 0xF8) << 2)
+    addr.WriteHi = false
+  }
+}
 
 // http://wiki.nesdev.com/w/index.php/PPU_scrolling#Y_increment
 func (addr *PPUADDR) IncrementFineY() {
@@ -741,14 +741,55 @@ func (mask *PPUMASK) shouldRender() bool {
   return mask.showBg || mask.showSprites
 }
 
+type PPUSTATUS struct {
+  SpriteOverflow bool
+  Sprite0Hit     bool
+  VBlankStarted  bool
+
+  // So we can simulate a dirty bus when reading CTRL
+  LastWrite uint8
+}
+
+//func (ppu *PPU) readStatus() byte {
+//	result := ppu.register & 0x1F
+//	result |= ppu.flagSpriteOverflow << 5
+//	result |= ppu.flagSpriteZeroHit << 6
+//	if ppu.nmiOccurred {
+//		result |= 1 << 7
+//	}
+//	ppu.nmiOccurred = false
+//	ppu.nmiChange()
+//	// w:                   = 0
+//	ppu.ADDR.WriteHi = false
+//	return result
+//}
+
+func (status *PPUSTATUS) Get() (result uint8) {
+  if status.SpriteOverflow {
+    result |= (0x1 << 5)
+  }
+  if status.Sprite0Hit {
+    result |= (0x1 << 6)
+  }
+  if status.VBlankStarted {
+    result |= (0x1 << 7)
+  }
+
+  result |= (status.LastWrite & 0x1f)
+
+  status.VBlankStarted = false
+  return
+}
+
 // ENDOF MINE
 
 type PPU struct {
 
   // MINE
-  CTRL *PPUCTRL
-  ADDR *PPUADDR
-  MASK *PPUMASK
+  CTRL   *PPUCTRL
+  ADDR   *PPUADDR
+  MASK   *PPUMASK
+  STATUS *PPUSTATUS
 
   // ENDOF MINE
 
@@ -780,7 +821,7 @@ type PPU struct {
 	register byte
 
 	// NMI flags
-	nmiOccurred bool
+	//nmiOccurred bool
 	//nmiOutput   bool
 	nmiPrevious bool
 	nmiDelay    byte
@@ -818,8 +859,8 @@ type PPU struct {
 	//flagBlueTint           byte // 0: normal; 1: emphasized
 
 	// $2002 PPUSTATUS
-	flagSpriteZeroHit  byte
-	flagSpriteOverflow byte
+	//flagSpriteZeroHit  byte
+	//flagSpriteOverflow byte
 
 	// $2003 OAMADDR
 	oamAddress byte
@@ -832,11 +873,12 @@ type PPU struct {
 func NewPPU(cpu *CPU, rom *Rom) *PPU {
 	//ppu := PPU{Memory: NewPPUMemory(console), console: console}
 	ppu := PPU{
-    CPU: cpu,
-    rom: rom,
-    CTRL: &PPUCTRL{},
-    ADDR: &PPUADDR{},
-    MASK: &PPUMASK{},
+    CPU:    cpu,
+    rom:    rom,
+    CTRL:   &PPUCTRL{},
+    ADDR:   &PPUADDR{},
+    MASK:   &PPUMASK{},
+    STATUS: &PPUSTATUS{},
   }
 	ppu.front = image.NewRGBA(image.Rect(0, 0, 256, 240))
 	ppu.back = image.NewRGBA(image.Rect(0, 0, 256, 240))
@@ -858,7 +900,7 @@ func (ppu *PPU) Save(encoder *gob.Encoder) error {
 	//encoder.Encode(ppu.w)
 	encoder.Encode(ppu.f)
 	encoder.Encode(ppu.register)
-	encoder.Encode(ppu.nmiOccurred)
+	//encoder.Encode(ppu.nmiOccurred)
 	//encoder.Encode(ppu.nmiOutput)
 	encoder.Encode(ppu.nmiPrevious)
 	encoder.Encode(ppu.nmiDelay)
@@ -886,8 +928,8 @@ func (ppu *PPU) Save(encoder *gob.Encoder) error {
 	//encoder.Encode(ppu.flagRedTint)
 	//encoder.Encode(ppu.flagGreenTint)
 	//encoder.Encode(ppu.flagBlueTint)
-	encoder.Encode(ppu.flagSpriteZeroHit)
-	encoder.Encode(ppu.flagSpriteOverflow)
+	//encoder.Encode(ppu.flagSpriteZeroHit)
+	//encoder.Encode(ppu.flagSpriteOverflow)
 	encoder.Encode(ppu.oamAddress)
 	encoder.Encode(ppu.bufferedData)
 	return nil
@@ -906,7 +948,7 @@ func (ppu *PPU) Load(decoder *gob.Decoder) error {
 	//decoder.Decode(&ppu.w)
 	decoder.Decode(&ppu.f)
 	decoder.Decode(&ppu.register)
-	decoder.Decode(&ppu.nmiOccurred)
+	//decoder.Decode(&ppu.nmiOccurred)
 	//decoder.Decode(&ppu.nmiOutput)
 	decoder.Decode(&ppu.nmiPrevious)
 	decoder.Decode(&ppu.nmiDelay)
@@ -934,8 +976,8 @@ func (ppu *PPU) Load(decoder *gob.Decoder) error {
 	//decoder.Decode(&ppu.flagRedTint)
 	//decoder.Decode(&ppu.flagGreenTint)
 	//decoder.Decode(&ppu.flagBlueTint)
-	decoder.Decode(&ppu.flagSpriteZeroHit)
-	decoder.Decode(&ppu.flagSpriteOverflow)
+	//decoder.Decode(&ppu.flagSpriteZeroHit)
+	//decoder.Decode(&ppu.flagSpriteOverflow)
 	decoder.Decode(&ppu.oamAddress)
 	decoder.Decode(&ppu.bufferedData)
 	return nil
@@ -971,7 +1013,9 @@ func (ppu *PPU) readRegister(address uint16) byte {
   //log.Printf("Reading ppu reg %x", address)
 	switch address {
 	case 0x2002:
-		return ppu.readStatus()
+		//return ppu.readStatus()
+    ppu.ADDR.WriteHi = false
+    return ppu.STATUS.Get()
 	case 0x2004:
 		return ppu.readOAMData()
 	case 0x2007:
@@ -984,6 +1028,7 @@ func (ppu *PPU) readRegister(address uint16) byte {
 func (ppu *PPU) writeRegister(address uint16, value byte) {
   //log.Printf("Writing ppu reg %x: %b", address, value)
 	ppu.register = value
+  ppu.STATUS.LastWrite = value
 	switch address {
 	case 0x2000:
 		//ppu.writeControl(value)
@@ -997,11 +1042,11 @@ func (ppu *PPU) writeRegister(address uint16, value byte) {
 	case 0x2004:
 		ppu.writeOAMData(value)
 	case 0x2005:
-		ppu.writeScroll(value)
-    //ppu.ADDR.SetOnSCROLLWrite(value)
+		//ppu.writeScroll(value)
+    ppu.ADDR.SetOnSCROLLWrite(value)
 	case 0x2006:
-		ppu.writeAddress(value)
-    //ppu.ADDR.Set(value)
+		//ppu.writeAddress(value)
+    ppu.ADDR.Write(value)
 	case 0x2007:
 		ppu.writeData(value)
 	case 0x4014:
@@ -1023,19 +1068,19 @@ func (ppu *PPU) writeRegister(address uint16, value byte) {
 //}
 
 // $2002: PPUSTATUS
-func (ppu *PPU) readStatus() byte {
-	result := ppu.register & 0x1F
-	result |= ppu.flagSpriteOverflow << 5
-	result |= ppu.flagSpriteZeroHit << 6
-	if ppu.nmiOccurred {
-		result |= 1 << 7
-	}
-	ppu.nmiOccurred = false
-	ppu.nmiChange()
-	// w:                   = 0
-	ppu.ADDR.WriteHi = false
-	return result
-}
+//func (ppu *PPU) readStatus() byte {
+//	result := ppu.register & 0x1F
+//	result |= ppu.flagSpriteOverflow << 5
+//	result |= ppu.flagSpriteZeroHit << 6
+//	if ppu.nmiOccurred {
+//		result |= 1 << 7
+//	}
+//	ppu.nmiOccurred = false
+//	ppu.nmiChange()
+//	// w:                   = 0
+//	ppu.ADDR.WriteHi = false
+//	return result
+//}
 
 // $2003: OAMADDR
 func (ppu *PPU) writeOAMAddress(value byte) {
@@ -1196,7 +1241,8 @@ func (ppu *PPU) copyY() {
 
 func (ppu *PPU) nmiChange() {
 	//nmi := ppu.nmiOutput && ppu.nmiOccurred
-	nmi := ppu.CTRL.NMIonVBlank && ppu.nmiOccurred
+	//nmi := ppu.CTRL.NMIonVBlank && ppu.nmiOccurred
+	nmi := ppu.CTRL.NMIonVBlank && ppu.STATUS.VBlankStarted
 	if nmi && !ppu.nmiPrevious {
 		// TODO: this fixes some games but the delay shouldn't have to be so
 		// long, so the timings are off somewhere
@@ -1226,12 +1272,14 @@ func (ppu *PPU) setVerticalBlank() {
 
   ppu.TV.SetFrame(ppu.Pixels)
 
-	ppu.nmiOccurred = true
+	//ppu.nmiOccurred = true
+	ppu.STATUS.VBlankStarted = true
 	ppu.nmiChange()
 }
 
 func (ppu *PPU) clearVerticalBlank() {
-	ppu.nmiOccurred = false
+	//ppu.nmiOccurred = false
+	ppu.STATUS.VBlankStarted = false
 	ppu.nmiChange()
 }
 
@@ -1444,7 +1492,8 @@ func (ppu *PPU) evaluateSprites() {
 func (ppu *PPU) tick() {
 	if ppu.nmiDelay > 0 {
 		ppu.nmiDelay--
-		if ppu.nmiDelay == 0 && ppu.CTRL.NMIonVBlank && ppu.nmiOccurred {
+		//if ppu.nmiDelay == 0 && ppu.CTRL.NMIonVBlank && ppu.nmiOccurred {
+		if ppu.nmiDelay == 0 && ppu.CTRL.NMIonVBlank && ppu.STATUS.VBlankStarted {
       ppu.CPU.nmiRequested = true
 		}
 	}
@@ -1539,8 +1588,10 @@ func (ppu *PPU) Step() {
 	}
 	if preLine && ppu.Cycle == 1 {
 		ppu.clearVerticalBlank()
-		ppu.flagSpriteZeroHit = 0
-		ppu.flagSpriteOverflow = 0
+		//ppu.flagSpriteZeroHit = 0
+		//ppu.flagSpriteOverflow = 0
+    ppu.STATUS.Sprite0Hit = false
+    ppu.STATUS.SpriteOverflow = false
 	}
 }
 
