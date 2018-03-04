@@ -774,6 +774,12 @@ type PPU struct {
 
   ReadDataBuffer uint8
 
+  Scanline int
+  Dot      int
+
+  BgTileShiftLow    uint16
+  BgTileShiftHigh   uint16
+
 	Cycle    int    // 0-340
 	ScanLine int    // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
 	Frame    uint64 // frame counter
@@ -1082,8 +1088,10 @@ func (ppu *PPU) spritePixel() (byte, byte) {
 }
 
 func (ppu *PPU) renderPixel() {
-	x := ppu.Cycle - 1
-	y := ppu.ScanLine
+	//x := ppu.Cycle - 1
+  x := ppu.Dot - 1
+	//y := ppu.ScanLine
+	y := ppu.Scanline
 	//background := ppu.backgroundPixel()
   //ccc := color.RGBA{R: background, G: 0xff, A: 0xaa}
   //ppu.back.SetRGBA(x, y, ccc)
