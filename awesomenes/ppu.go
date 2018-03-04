@@ -444,19 +444,6 @@ func (ppu *PPU) ReadOAMData() uint8 {
 }
 
 //PPUDATA
-func (ppu *PPU) WriteData(v uint8) {
-  //log.Printf("Wrote PPU data at %x: %x", ppu.ADDR.VAddr, v)
-  ppu.Write8(ppu.ADDR.VAddr, v)
-  ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
-}
-
-func (ppu *PPU) ReadData() uint8 {
-  //log.Printf("Read PPU Data")
-  val := ppu.Read8(ppu.ADDR.VAddr)
-  ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
-  return val
-}
-
 func (ppu *PPU) OMADMA(data []uint8) {
   copy(ppu.OAMData[:], data)
 }
@@ -518,7 +505,6 @@ func getMirroedAddr(addr uint16) uint16 {
 
 import (
   "log"
-	"encoding/gob"
 	"image"
 	"image/color"
   "math"
@@ -633,14 +619,6 @@ func (addr *PPUADDR) Write(v uint8) {
   }
 }
 
-//func (addr *PPUADDR) SetOnCTRLWrite(v uint8) {
-//  addr.TAddr = (addr.TAddr & 0xf3ff) | uint16(v & 0x03) << 10
-//}
-
-//func (addr *PPUADDR) SetOnSTATUSRead() {
-//  addr.WriteHi = false
-//}
-
 // http://wiki.nesdev.com/w/index.php/PPU_scrolling
 func (addr *PPUADDR) TransferX () {
   addr.VAddr = (addr.VAddr & 0xFBE0) | (addr.TAddr & 0x041F)
@@ -648,6 +626,14 @@ func (addr *PPUADDR) TransferX () {
 
 func (addr *PPUADDR) TransferY () {
   addr.VAddr = (addr.VAddr & 0x841F) | (addr.TAddr & 0x7BE0)
+}
+
+func (addr *PPUADDR) SetOnCTRLWrite(v uint8) {
+  addr.TAddr = (addr.TAddr & 0xf3ff) | uint16(v & 0x03) << 10
+}
+
+func (addr *PPUADDR) SetOnSTATUSRead() {
+  addr.WriteHi = false
 }
 
 func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
@@ -750,20 +736,6 @@ type PPUSTATUS struct {
   LastWrite uint8
 }
 
-//func (ppu *PPU) readStatus() byte {
-//	result := ppu.register & 0x1F
-//	result |= ppu.flagSpriteOverflow << 5
-//	result |= ppu.flagSpriteZeroHit << 6
-//	if ppu.nmiOccurred {
-//		result |= 1 << 7
-//	}
-//	ppu.nmiOccurred = false
-//	ppu.nmiChange()
-//	// w:                   = 0
-//	ppu.ADDR.WriteHi = false
-//	return result
-//}
-
 func (status *PPUSTATUS) Get() (result uint8) {
   if status.SpriteOverflow {
     result |= (0x1 << 5)
@@ -800,6 +772,8 @@ type PPU struct {
   TV *TV
   Pixels []byte
 
+  ReadDataBuffer uint8
+
 	Cycle    int    // 0-340
 	ScanLine int    // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
 	Frame    uint64 // frame counter
@@ -823,8 +797,8 @@ type PPU struct {
 	// NMI flags
 	//nmiOccurred bool
 	//nmiOutput   bool
-	nmiPrevious bool
-	nmiDelay    byte
+	//nmiPrevious bool
+	//nmiDelay    byte
 
 	// background temporary variables
 	nameTableByte      byte
@@ -866,7 +840,7 @@ type PPU struct {
 	oamAddress byte
 
 	// $2007 PPUDATA
-	bufferedData byte // for buffered reads
+	//bufferedData byte // for buffered reads
 }
 
 //func NewPPU(console *Console) *PPU {
@@ -887,110 +861,12 @@ func NewPPU(cpu *CPU, rom *Rom) *PPU {
 	return &ppu
 }
 
-func (ppu *PPU) Save(encoder *gob.Encoder) error {
-	encoder.Encode(ppu.Cycle)
-	encoder.Encode(ppu.ScanLine)
-	encoder.Encode(ppu.Frame)
-	encoder.Encode(ppu.paletteData)
-	encoder.Encode(ppu.nameTableData)
-	encoder.Encode(ppu.oamData)
-	//encoder.Encode(ppu.v)
-	//encoder.Encode(ppu.t)
-	//encoder.Encode(ppu.x)
-	//encoder.Encode(ppu.w)
-	encoder.Encode(ppu.f)
-	encoder.Encode(ppu.register)
-	//encoder.Encode(ppu.nmiOccurred)
-	//encoder.Encode(ppu.nmiOutput)
-	encoder.Encode(ppu.nmiPrevious)
-	encoder.Encode(ppu.nmiDelay)
-	encoder.Encode(ppu.nameTableByte)
-	encoder.Encode(ppu.attributeTableByte)
-	encoder.Encode(ppu.lowTileByte)
-	encoder.Encode(ppu.highTileByte)
-	encoder.Encode(ppu.tileData)
-	encoder.Encode(ppu.spriteCount)
-	encoder.Encode(ppu.spritePatterns)
-	encoder.Encode(ppu.spritePositions)
-	encoder.Encode(ppu.spritePriorities)
-	encoder.Encode(ppu.spriteIndexes)
-	//encoder.Encode(ppu.flagNameTable)
-	//encoder.Encode(ppu.flagIncrement)
-	//encoder.Encode(ppu.flagSpriteTable)
-	//encoder.Encode(ppu.flagBackgroundTable)
-	//encoder.Encode(ppu.flagSpriteSize)
-	//encoder.Encode(ppu.flagMasterSlave)
-	//encoder.Encode(ppu.flagGrayscale)
-	//encoder.Encode(ppu.flagShowLeftBackground)
-	//encoder.Encode(ppu.flagShowLeftSprites)
-	//encoder.Encode(ppu.flagShowBackground)
-	//encoder.Encode(ppu.flagShowSprites)
-	//encoder.Encode(ppu.flagRedTint)
-	//encoder.Encode(ppu.flagGreenTint)
-	//encoder.Encode(ppu.flagBlueTint)
-	//encoder.Encode(ppu.flagSpriteZeroHit)
-	//encoder.Encode(ppu.flagSpriteOverflow)
-	encoder.Encode(ppu.oamAddress)
-	encoder.Encode(ppu.bufferedData)
-	return nil
-}
-
-func (ppu *PPU) Load(decoder *gob.Decoder) error {
-	decoder.Decode(&ppu.Cycle)
-	decoder.Decode(&ppu.ScanLine)
-	decoder.Decode(&ppu.Frame)
-	decoder.Decode(&ppu.paletteData)
-	decoder.Decode(&ppu.nameTableData)
-	decoder.Decode(&ppu.oamData)
-	//decoder.Decode(&ppu.v)
-	//decoder.Decode(&ppu.t)
-	//decoder.Decode(&ppu.x)
-	//decoder.Decode(&ppu.w)
-	decoder.Decode(&ppu.f)
-	decoder.Decode(&ppu.register)
-	//decoder.Decode(&ppu.nmiOccurred)
-	//decoder.Decode(&ppu.nmiOutput)
-	decoder.Decode(&ppu.nmiPrevious)
-	decoder.Decode(&ppu.nmiDelay)
-	decoder.Decode(&ppu.nameTableByte)
-	decoder.Decode(&ppu.attributeTableByte)
-	decoder.Decode(&ppu.lowTileByte)
-	decoder.Decode(&ppu.highTileByte)
-	decoder.Decode(&ppu.tileData)
-	decoder.Decode(&ppu.spriteCount)
-	decoder.Decode(&ppu.spritePatterns)
-	decoder.Decode(&ppu.spritePositions)
-	decoder.Decode(&ppu.spritePriorities)
-	decoder.Decode(&ppu.spriteIndexes)
-	//decoder.Decode(&ppu.flagNameTable)
-	//decoder.Decode(&ppu.flagIncrement)
-	//decoder.Decode(&ppu.flagSpriteTable)
-	//decoder.Decode(&ppu.flagBackgroundTable)
-	//decoder.Decode(&ppu.flagSpriteSize)
-	//decoder.Decode(&ppu.flagMasterSlave)
-	//decoder.Decode(&ppu.flagGrayscale)
-	//decoder.Decode(&ppu.flagShowLeftBackground)
-	//decoder.Decode(&ppu.flagShowLeftSprites)
-	//decoder.Decode(&ppu.flagShowBackground)
-	//decoder.Decode(&ppu.flagShowSprites)
-	//decoder.Decode(&ppu.flagRedTint)
-	//decoder.Decode(&ppu.flagGreenTint)
-	//decoder.Decode(&ppu.flagBlueTint)
-	//decoder.Decode(&ppu.flagSpriteZeroHit)
-	//decoder.Decode(&ppu.flagSpriteOverflow)
-	decoder.Decode(&ppu.oamAddress)
-	decoder.Decode(&ppu.bufferedData)
-	return nil
-}
-
 func (ppu *PPU) Reset() {
 	ppu.Cycle = 340
 	ppu.ScanLine = 240
 	ppu.Frame = 0
-	//ppu.writeControl(0)
-  ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0xF3FF) | ((uint16(0) & 0x03) << 10)
   ppu.CTRL.Set(0)
-	//ppu.writeMask(0)
+  ppu.ADDR.SetOnSCROLLWrite(0)
   ppu.MASK.Set(0)
 	ppu.writeOAMAddress(0)
 }
@@ -1010,19 +886,36 @@ func (ppu *PPU) writePalette(address uint16, value byte) {
 }
 
 func (ppu *PPU) readRegister(address uint16) byte {
-  //log.Printf("Reading ppu reg %x", address)
 	switch address {
 	case 0x2002:
-		//return ppu.readStatus()
-    ppu.ADDR.WriteHi = false
+    ppu.ADDR.SetOnSTATUSRead()
     return ppu.STATUS.Get()
 	case 0x2004:
 		return ppu.readOAMData()
 	case 0x2007:
-		return ppu.readData()
+		return ppu.ReadData()
 	}
   panic("Invalid read")
 	return 0
+}
+
+// VRAM 0x0000 - 0x3eff reads are buffered!
+// https://wiki.nesdev.com/w/index.php/PPU_registers#The_PPUDATA_read_buffer_.28post-fetch.29
+func (ppu *PPU) ReadData() uint8 {
+  current := ppu.Read(ppu.ADDR.VAddr)
+  ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
+
+	if ppu.ADDR.VAddr <= 0x3eff {
+    ppu.ReadDataBuffer, current = current, ppu.ReadDataBuffer
+  }
+
+  // TODO: fogleman subtracts 0x1000 form this addr. Why?
+  return current
+}
+
+func (ppu *PPU) WriteData(v uint8) {
+  ppu.Write(ppu.ADDR.VAddr, v)
+  ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
 }
 
 func (ppu *PPU) writeRegister(address uint16, value byte) {
@@ -1031,9 +924,8 @@ func (ppu *PPU) writeRegister(address uint16, value byte) {
   ppu.STATUS.LastWrite = value
 	switch address {
 	case 0x2000:
-		//ppu.writeControl(value)
     ppu.CTRL.Set(value)
-    ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0xF3FF) | ((uint16(value) & 0x03) << 10)
+    ppu.ADDR.SetOnCTRLWrite(value)
 	case 0x2001:
 		//ppu.writeMask(value)
     ppu.MASK.Set(value)
@@ -1042,45 +934,15 @@ func (ppu *PPU) writeRegister(address uint16, value byte) {
 	case 0x2004:
 		ppu.writeOAMData(value)
 	case 0x2005:
-		//ppu.writeScroll(value)
     ppu.ADDR.SetOnSCROLLWrite(value)
 	case 0x2006:
-		//ppu.writeAddress(value)
     ppu.ADDR.Write(value)
 	case 0x2007:
-		ppu.writeData(value)
+		ppu.WriteData(value)
 	case 0x4014:
 		ppu.writeDMA(value)
 	}
 }
-
-// $2001: PPUMASK
-//func (ppu *PPU) writeMask(value byte) {
-//  //log.Printf("WROTE MASK %b", value)
-//	ppu.flagGrayscale = (value >> 0) & 1
-//	ppu.flagShowLeftBackground = (value >> 1) & 1
-//	ppu.flagShowLeftSprites = (value >> 2) & 1
-//	ppu.flagShowBackground = (value >> 3) & 1
-//	ppu.flagShowSprites = (value >> 4) & 1
-//	ppu.flagRedTint = (value >> 5) & 1
-//	ppu.flagGreenTint = (value >> 6) & 1
-//	ppu.flagBlueTint = (value >> 7) & 1
-//}
-
-// $2002: PPUSTATUS
-//func (ppu *PPU) readStatus() byte {
-//	result := ppu.register & 0x1F
-//	result |= ppu.flagSpriteOverflow << 5
-//	result |= ppu.flagSpriteZeroHit << 6
-//	if ppu.nmiOccurred {
-//		result |= 1 << 7
-//	}
-//	ppu.nmiOccurred = false
-//	ppu.nmiChange()
-//	// w:                   = 0
-//	ppu.ADDR.WriteHi = false
-//	return result
-//}
 
 // $2003: OAMADDR
 func (ppu *PPU) writeOAMAddress(value byte) {
@@ -1098,76 +960,6 @@ func (ppu *PPU) writeOAMData(value byte) {
 	ppu.oamAddress++
 }
 
-// $2005: PPUSCROLL
-func (ppu *PPU) writeScroll(value byte) {
-	if ppu.ADDR.WriteHi == false {
-		// t: ........ ...HGFED = d: HGFED...
-		// x:               CBA = d: .....CBA
-		// w:                   = 1
-		//ppu.t = (ppu.t & 0xFFE0) | (uint16(value) >> 3)
-		ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0xFFE0) | (uint16(value) >> 3)
-		ppu.ADDR.FineXScroll = value & 0x07
-		ppu.ADDR.WriteHi = true
-	} else {
-		// t: .CBA..HG FED..... = d: HGFEDCBA
-		// w:                   = 0
-		ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0x8FFF) | ((uint16(value) & 0x07) << 12)
-		ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0xFC1F) | ((uint16(value) & 0xF8) << 2)
-		ppu.ADDR.WriteHi = false
-	}
-}
-
-// $2006: PPUADDR
-func (ppu *PPU) writeAddress(value byte) {
-	if ppu.ADDR.WriteHi == false {
-		// t: ..FEDCBA ........ = d: ..FEDCBA
-		// t: .X...... ........ = 0
-		// w:                   = 1
-		ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0x80FF) | ((uint16(value) & 0x3F) << 8)
-		ppu.ADDR.WriteHi = true
-	} else {
-		// t: ........ HGFEDCBA = d: HGFEDCBA
-		// v                    = t
-		// w:                   = 0
-		ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0xFF00) | uint16(value)
-		ppu.ADDR.VAddr = ppu.ADDR.TAddr
-		ppu.ADDR.WriteHi = false
-	}
-}
-
-// $2007: PPUDATA (read)
-func (ppu *PPU) readData() byte {
-	value := ppu.Read(ppu.ADDR.VAddr)
-	// emulate buffered reads
-	if ppu.ADDR.VAddr%0x4000 < 0x3F00 {
-		buffered := ppu.bufferedData
-		ppu.bufferedData = value
-		value = buffered
-	} else {
-		ppu.bufferedData = ppu.Read(ppu.ADDR.VAddr - 0x1000)
-	}
-	// increment address
-	//if ppu.flagIncrement == 0 {
-	//	ppu.v += 1
-	//} else {
-	//	ppu.v += 32
-	//}
-  ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
-	return value
-}
-
-// $2007: PPUDATA (write)
-func (ppu *PPU) writeData(value byte) {
-  //log.Printf("Wrote PPU data at %x: %x", ppu.v, value)
-	ppu.Write(ppu.ADDR.VAddr, value)
-	//if ppu.flagIncrement == 0 {
-	//	ppu.v += 1
-	//} else {
-	//	ppu.v += 32
-	//}
-  ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
-}
-
 // $4014: OAMDMA
 func (ppu *PPU) writeDMA(value byte) {
 	//cpu := ppu.console.CPU
@@ -1181,74 +973,6 @@ func (ppu *PPU) writeDMA(value byte) {
 	//if cpu.Cycles%2 == 1 {
 	//	cpu.stall++
 	//}
-}
-
-// NTSC Timing Helper Functions
-
-func (ppu *PPU) incrementX() {
-	// increment hori(v)
-	// if coarse X == 31
-	if ppu.ADDR.VAddr&0x001F == 31 {
-		// coarse X = 0
-		ppu.ADDR.VAddr &= 0xFFE0
-		// switch horizontal nametable
-		ppu.ADDR.VAddr ^= 0x0400
-	} else {
-		// increment coarse X
-		ppu.ADDR.VAddr++
-	}
-}
-
-func (ppu *PPU) incrementY() {
-	// increment vert(v)
-	// if fine Y < 7
-	if ppu.ADDR.VAddr&0x7000 != 0x7000 {
-		// increment fine Y
-		ppu.ADDR.VAddr += 0x1000
-	} else {
-		// fine Y = 0
-		ppu.ADDR.VAddr &= 0x8FFF
-		// let y = coarse Y
-		y := (ppu.ADDR.VAddr & 0x03E0) >> 5
-		if y == 29 {
-			// coarse Y = 0
-			y = 0
-			// switch vertical nametable
-			ppu.ADDR.VAddr ^= 0x0800
-		} else if y == 31 {
-			// coarse Y = 0, nametable not switched
-			y = 0
-		} else {
-			// increment coarse Y
-			y++
-		}
-		// put coarse Y back into v
-		ppu.ADDR.VAddr = (ppu.ADDR.VAddr & 0xFC1F) | (y << 5)
-	}
-}
-
-func (ppu *PPU) copyX() {
-	// hori(v) = hori(t)
-	// v: .....F.. ...EDCBA = t: .....F.. ...EDCBA
-	ppu.ADDR.VAddr = (ppu.ADDR.VAddr & 0xFBE0) | (ppu.ADDR.TAddr & 0x041F)
-}
-
-func (ppu *PPU) copyY() {
-	// vert(v) = vert(t)
-	// v: .IHGF.ED CBA..... = t: .IHGF.ED CBA.....
-	ppu.ADDR.VAddr = (ppu.ADDR.VAddr & 0x841F) | (ppu.ADDR.TAddr & 0x7BE0)
-}
-
-func (ppu *PPU) nmiChange() {
-	//nmi := ppu.nmiOutput && ppu.nmiOccurred
-	//nmi := ppu.CTRL.NMIonVBlank && ppu.nmiOccurred
-	nmi := ppu.CTRL.NMIonVBlank && ppu.STATUS.VBlankStarted
-	if nmi && !ppu.nmiPrevious {
-		// TODO: this fixes some games but the delay shouldn't have to be so
-		// long, so the timings are off somewhere
-		ppu.nmiDelay = 15
-	}
-	ppu.nmiPrevious = nmi
 }
 
 func (ppu *PPU) setVerticalBlank() {
@@ -1272,15 +996,10 @@ func (ppu *PPU) setVerticalBlank() {
 
   ppu.TV.SetFrame(ppu.Pixels)
 
-	//ppu.nmiOccurred = true
 	ppu.STATUS.VBlankStarted = true
-	ppu.nmiChange()
-}
-
-func (ppu *PPU) clearVerticalBlank() {
-	//ppu.nmiOccurred = false
-	ppu.STATUS.VBlankStarted = false
-	ppu.nmiChange()
+  if ppu.CTRL.NMIonVBlank {
+    ppu.CPU.nmiRequested = true
+  }
 }
 
 func (ppu *PPU) fetchNameTableByte() {
@@ -1490,14 +1209,6 @@ func (ppu *PPU) evaluateSprites() {
 
 // tick updates Cycle, ScanLine and Frame counters
 func (ppu *PPU) tick() {
-	if ppu.nmiDelay > 0 {
-		ppu.nmiDelay--
-		//if ppu.nmiDelay == 0 && ppu.CTRL.NMIonVBlank && ppu.nmiOccurred {
-		if ppu.nmiDelay == 0 && ppu.CTRL.NMIonVBlank && ppu.STATUS.VBlankStarted {
-      ppu.CPU.nmiRequested = true
-		}
-	}
-
 	//if ppu.flagShowBackground != 0 || ppu.flagShowSprites != 0 {
 	//	if ppu.f == 1 && ppu.ScanLine == 261 && ppu.Cycle == 339 {
 	//		ppu.Cycle = 0
@@ -1587,10 +1298,8 @@ func (ppu *PPU) Step() {
     //ppu.console.CPU.triggerNMI()
 	}
 	if preLine && ppu.Cycle == 1 {
-		ppu.clearVerticalBlank()
-		//ppu.flagSpriteZeroHit = 0
-		//ppu.flagSpriteOverflow = 0
-    ppu.STATUS.Sprite0Hit = false
+    ppu.STATUS.VBlankStarted  = false
+    ppu.STATUS.Sprite0Hit     = false
     ppu.STATUS.SpriteOverflow = false
 	}
 }
@@ -1624,8 +1333,6 @@ func (ppu *PPU) Write(address uint16, value byte) {
 		//mem.console.Mapper.Write(address, value)
     ppu.rom.CHRROM[address] = value
 	case address < 0x3F00:
-		//mode := mem.console.Cartridge.Mirror
-		//mem.console.PPU.nameTableData[MirrorAddress(mode, address)%2048] = value
     ppu.nameTableData[address%0x800] = value
 	case address < 0x4000:
 		ppu.writePalette(address%32, value)
@@ -1653,28 +1360,3 @@ func (ppu *PPU) Write(address uint16, value byte) {
 //      log.Fatalf("Invalid write to PPU at %x", addr)
 //  }
 //}
-
-// Mirroring Modes
-
-const (
-	MirrorHorizontal = 0
-	MirrorVertical   = 1
-	MirrorSingle0    = 2
-	MirrorSingle1    = 3
-	MirrorFour       = 4
-)
-
-var MirrorLookup = [...][4]uint16{
-	{0, 0, 1, 1},
-	{0, 1, 0, 1},
-	{0, 0, 0, 0},
-	{1, 1, 1, 1},
-	{0, 1, 2, 3},
-}
-
-func MirrorAddress(mode byte, address uint16) uint16 {
-	address = (address - 0x2000) % 0x1000
-	table := address / 0x0400
-	offset := address % 0x0400
-	return 0x2000 + MirrorLookup[mode][table]*0x0400 + offset
-}
