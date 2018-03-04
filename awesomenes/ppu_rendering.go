@@ -2,6 +2,7 @@ package awesomenes
 
 import (
   "log"
+  "image/color"
 )
 
 /*
@@ -72,50 +73,57 @@ func (ppu *PPU) tickPreScanline() {
 
 func (ppu *PPU) tickVisibleScanline() {
   dot         := ppu.Dot
-  isFetchTime := (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 340)
+  isFetchTime := (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 336)
 
   if !ppu.MASK.shouldRender() {
     return
   }
 
-  if dot >= 1 && dot <= 255 {
-    //ppu.RenderSinglePixel()
-    ppu.renderPixel()
+  if dot >= 0 && dot <= 257 {
+    ppu.RenderSinglePixel()
   }
 
-  //log.Printf("ppu.tileData: %x", ppu.tileData)
-  //if (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 340) {
   if isFetchTime {
-     ppu.tileData <<= 4
-     switch dot % 8 {
-      case 1:
-        ppu.fetchNameTableByte()
-      case 3:
-        //ppu.fetchAttributeTableByte()
-      case 5:
-        ppu.fetchLowTileByte()
-      case 7:
-        ppu.fetchHighTileByte()
-      case 0:
-        ppu.storeTileData()
-      }
-    //switch ppu.Dot % 8 {
-    //  case 1:
-    //    ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
-    //    ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
-    //    ppu.storeTileData()
-    //  case 2:
-    //    ppu.NameTableLatch = ppu.Read8(ppu.ADDR.NameTableAddr())
-    //  case 4:
-    //    ppu.AttrTableLatch = ppu.Read8(ppu.ADDR.AttrTableAddr())
-    //  case 5:
-    //    //log.Printf("Low bg tile addr %x", ppu.LowBGTileAddr())
-    //    ppu.BgLatchLow = ppu.Read8(ppu.LowBGTileAddr())
-    //    //log.Printf("LathLow %x", ppu.BgLatchLow)
-    //  case 7:
-    //    //log.Printf("Low bg tile addr %x", ppu.HighBGTileAddr())
-    //    ppu.BgLatchHigh = ppu.Read8(ppu.HighBGTileAddr())
+    //ppu.tileData <<= 4
+    //switch dot % 8 {
+    // case 1:
+    //   ppu.fetchNameTableByte()
+    // case 3:
+    //   //ppu.fetchAttributeTableByte()
+    // case 5:
+    //   ppu.fetchLowTileByte()
+    // case 7:
+    //   ppu.fetchHighTileByte()
+    // case 0:
+    //   ppu.storeTileData()
     //}
+    ppu.BgTileShiftLow  <<= 1
+    ppu.BgTileShiftHigh <<= 1
+
+    switch ppu.Dot % 8 {
+      case 1:
+        ppu.tempTileAddr    = ppu.ADDR.NameTableAddr()
+        //if dot > 1 {
+          ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
+          ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
+        //}
+      case 2:
+        //ppu.NameTableLatch = ppu.Read(ppu.ADDR.NameTableAddr())
+        ppu.NameTableLatch = ppu.Read(ppu.tempTileAddr)
+      case 4:
+        //ppu.AttrTableLatch = ppu.Read(ppu.ADDR.AttrTableAddr())
+      case 5:
+        ppu.tempTileAddr    = ppu.LowBGTileAddr()
+      case 6:
+        //ppu.BgLatchLow = ppu.Read(ppu.LowBGTileAddr())
+        ppu.BgLatchLow = ppu.Read(ppu.tempTileAddr)
+      case 7:
+        ppu.tempTileAddr    = ppu.HighBGTileAddr()
+      case 0:
+        //ppu.BgLatchHigh = ppu.Read(ppu.HighBGTileAddr())
+        ppu.BgLatchHigh = ppu.Read(ppu.tempTileAddr)
+        ppu.ADDR.IncrementCoarseX()
+    }
   }
 
   // Sprite evaluation
@@ -129,23 +137,47 @@ func (ppu *PPU) tickVisibleScanline() {
   // Housekeeping. See http://wiki.nesdev.com/w/index.php/PPU_scrolling
 
   if dot == 256 {
+    //ppu.RenderSinglePixel()
+    //ppu.BgLatchLow = ppu.Read(ppu.tempTileAddr)
     ppu.ADDR.IncrementFineY()
   }
 
   if dot == 257 {
+    //ppu.RenderSinglePixel()
     ppu.ADDR.TransferX()
   }
 
   if isFetchTime && dot % 8 == 0 {
-    ppu.ADDR.IncrementCoarseX()
+    //ppu.ADDR.IncrementCoarseX()
   }
 
 }
 
+func (ppu *PPU) LowBGTileAddr() uint16 {
+  return ppu.CTRL.BgTableAddr + uint16(ppu.NameTableLatch) * 16 + ppu.ADDR.FineY()
+}
+
+func (ppu *PPU) HighBGTileAddr() uint16 {
+  return ppu.LowBGTileAddr() + 8
+}
+
+func (addr *PPUADDR) NameTableAddr() uint16 {
+  return 0x2000 | (addr.VAddr & 0x0fff)
+}
+
+// http://wiki.nesdev.com/w/index.php/PPU_scrolling
+func (addr *PPUADDR) AttrTableAddr() uint16 {
+  v := addr.VAddr
+  return 0x23c0 | (v & 0x0c00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
+}
+
+func (addr *PPUADDR) FineY() uint16 {
+  return (addr.VAddr >> 12) & 0x07
+}
 
 func (ppu *PPU) RenderSinglePixel() {
-  line := ppu.Scanline
-  dot := ppu.Dot
+  x := ppu.Dot - 1
+	y := ppu.Scanline
 
   //log.Printf("Rendering line %v dot %v", line, dot)
   //log.Printf("VAddr: %x", ppu.ADDR.VAddr)
@@ -159,7 +191,17 @@ func (ppu *PPU) RenderSinglePixel() {
   //  v = 0x00
   //}
   //v = uint8(80 * (test & 0xff))
-  v := 40*ppu.backgroundPixel()
+  //v := 40*ppu.backgroundPixel()
+  background := uint8(
+    //((ppu.BgTileShiftHigh & 0x1) << 1) |
+    //((ppu.BgTileShiftLow * 0x1) << 0))
+    ((ppu.BgTileShiftHigh >> 15) << 1) |
+    ((ppu.BgTileShiftLow  >> 15) << 0))
+  log.Printf("Bg pixel: %x", background)
+
+  cc := color.RGBA{40*background, 40*background, 40*background, 0xff}
+
+  ppu.back.SetRGBA(x, y, cc)
 
 
   //log.Printf("BG PIXEL %x", v)
@@ -168,9 +210,9 @@ func (ppu *PPU) RenderSinglePixel() {
   //if line >= 0 && line <= 239 {
     //v := 80 * uint8(rand.Uint32() & 0x03)
     //vv := v << 6 | v << 4 | v << 2 | 0x3
-    ppu.Pixels[3*(line * 256 + dot) + 0] = v
-    ppu.Pixels[3*(line * 256 + dot) + 1] = v
-    ppu.Pixels[3*(line * 256 + dot) + 2] = v
+    //ppu.Pixels[3*(line * 256 + dot) + 0] = v
+    //ppu.Pixels[3*(line * 256 + dot) + 1] = v
+    //ppu.Pixels[3*(line * 256 + dot) + 2] = v
     //ppu.Pixels[4*(line * 255 + dot) + 3] = 0xff
   //}
 
@@ -189,9 +231,6 @@ func (ppu *PPU) RenderSinglePixel() {
   //}
 
   //log.Printf("Test: %x line %v", test, line)
-
-  ppu.BgTileShiftHigh <<= 1
-  ppu.BgTileShiftLow  <<= 1
 }
 
 // Noop is fine?

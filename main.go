@@ -51,13 +51,14 @@ func main() {
     cpuCycles += newCycles
 
     for ppuCycles = 0; ppuCycles < 3 * newCycles; ppuCycles++ {
-      ppu.Step()
+      //ppu.Step()
+      ppu.TickScanline()
     }
 
     if cpuCycles > frameCycles {
       cpuCycles = 0
       tv.ShowPixels()
-      time.Sleep(100000)
+      time.Sleep(10000000)
     }
   }
   return

@@ -57,14 +57,6 @@ func (ctrl *PPUCTRL) Set(v uint8) {
   ctrl.NMIonVBlank        = boolSetter(v, 7, false, true)
 }
 
-func (ppu *PPU) LowBGTileAddr() uint16 {
-  return ppu.CTRL.BgTableAddr + uint16(ppu.NameTableLatch) * 16 + ppu.ADDR.FineY()
-}
-
-func (ppu *PPU) HighBGTileAddr() uint16 {
-  return ppu.LowBGTileAddr() + 8
-}
-
 // PPUMASK
 
 type PPUMASK struct {
@@ -777,8 +769,14 @@ type PPU struct {
   Scanline int
   Dot      int
 
+  NameTableLatch    uint8
+  AttrTableLatch    uint8
+  BgLatchLow        uint8
+  BgLatchHigh       uint8
   BgTileShiftLow    uint16
   BgTileShiftHigh   uint16
+
+  tempTileAddr      uint16
 
 	Cycle    int    // 0-340
 	ScanLine int    // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
@@ -1064,6 +1062,8 @@ func (ppu *PPU) backgroundPixel() byte {
 	//data := ppu.fetchTileData() >> ((7 - ppu.x) * 4)
 	data := ppu.fetchTileData()
   //log.Printf("BG Pixel %x", data)
+
+
 	return byte(data & 0x0F)
 }
 
