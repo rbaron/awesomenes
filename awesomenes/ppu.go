@@ -641,21 +641,11 @@ func (addr *PPUADDR) Write(v uint8) {
 //  addr.WriteHi = false
 //}
 
-//func (ppu *PPU) copyX() {
-//	// hori(v) = hori(t)
-//	// v: .....F.. ...EDCBA = t: .....F.. ...EDCBA
-//	ppu.ADDR.VAddr = (ppu.ADDR.VAddr & 0xFBE0) | (ppu.ADDR.TAddr & 0x041F)
-//}
 // http://wiki.nesdev.com/w/index.php/PPU_scrolling
 func (addr *PPUADDR) TransferX () {
   addr.VAddr = (addr.VAddr & 0xFBE0) | (addr.TAddr & 0x041F)
 }
 
-//func (ppu *PPU) copyY() {
-//	// vert(v) = vert(t)
-//	// v: .IHGF.ED CBA..... = t: .IHGF.ED CBA.....
-//	ppu.ADDR.VAddr = (ppu.ADDR.VAddr & 0x841F) | (ppu.ADDR.TAddr & 0x7BE0)
-//}
 func (addr *PPUADDR) TransferY () {
   addr.VAddr = (addr.VAddr & 0x841F) | (addr.TAddr & 0x7BE0)
 }
@@ -725,6 +715,32 @@ func (addr *PPUADDR) IncrementCoarseX() {
 //  return ppu.LowBGTileAddr() + 8
 //}
 
+type PPUMASK struct {
+  greyscale       bool
+  showBgLeft      bool
+  showSpritesLeft bool
+  showBg          bool
+  showSprites     bool
+  emphasisRed     bool
+  emphasisGreen   bool
+  emphasisBlue    bool
+}
+
+func (mask *PPUMASK) Set(v uint8) {
+  mask.greyscale       = boolSetter(v, 0, false, true)
+  mask.showBgLeft      = boolSetter(v, 1, false, true)
+  mask.showSpritesLeft = boolSetter(v, 2, false, true)
+  mask.showBg          = boolSetter(v, 3, false, true)
+  mask.showSprites     = boolSetter(v, 4, false, true)
+  mask.emphasisRed     = boolSetter(v, 5, false, true)
+  mask.emphasisGreen   = boolSetter(v, 6, false, true)
+  mask.emphasisBlue    = boolSetter(v, 7, false, true)
+}
+
+func (mask *PPUMASK) shouldRender() bool {
+  return mask.showBg || mask.showSprites
+}
+
 // ENDOF MINE
 
 type PPU struct {
@@ -732,6 +748,7 @@ type PPU struct {
   // MINE
   CTRL *PPUCTRL
   ADDR *PPUADDR
+  MASK *PPUMASK
 
   // ENDOF MINE
 
@@ -791,14 +808,14 @@ type PPU struct {
 	//flagMasterSlave     byte // 0: read EXT; 1: write EXT
 
 	// $2001 PPUMASK
-	flagGrayscale          byte // 0: color; 1: grayscale
-	flagShowLeftBackground byte // 0: hide; 1: show
-	flagShowLeftSprites    byte // 0: hide; 1: show
-	flagShowBackground     byte // 0: hide; 1: show
-	flagShowSprites        byte // 0: hide; 1: show
-	flagRedTint            byte // 0: normal; 1: emphasized
-	flagGreenTint          byte // 0: normal; 1: emphasized
-	flagBlueTint           byte // 0: normal; 1: emphasized
+	//flagGrayscale          byte // 0: color; 1: grayscale
+	//flagShowLeftBackground byte // 0: hide; 1: show
+	//flagShowLeftSprites    byte // 0: hide; 1: show
+	//flagShowBackground     byte // 0: hide; 1: show
+	//flagShowSprites        byte // 0: hide; 1: show
+	//flagRedTint            byte // 0: normal; 1: emphasized
+	//flagGreenTint          byte // 0: normal; 1: emphasized
+	//flagBlueTint           byte // 0: normal; 1: emphasized
 
 	// $2002 PPUSTATUS
 	flagSpriteZeroHit  byte
@@ -819,6 +836,7 @@ func NewPPU(cpu *CPU, rom *Rom) *PPU {
     rom: rom,
     CTRL: &PPUCTRL{},
     ADDR: &PPUADDR{},
+    MASK: &PPUMASK{},
   }
 	ppu.front = image.NewRGBA(image.Rect(0, 0, 256, 240))
 	ppu.back = image.NewRGBA(image.Rect(0, 0, 256, 240))
@@ -860,14 +878,14 @@ func (ppu *PPU) Save(encoder *gob.Encoder) error {
 	//encoder.Encode(ppu.flagBackgroundTable)
 	//encoder.Encode(ppu.flagSpriteSize)
 	//encoder.Encode(ppu.flagMasterSlave)
-	encoder.Encode(ppu.flagGrayscale)
-	encoder.Encode(ppu.flagShowLeftBackground)
-	encoder.Encode(ppu.flagShowLeftSprites)
-	encoder.Encode(ppu.flagShowBackground)
-	encoder.Encode(ppu.flagShowSprites)
-	encoder.Encode(ppu.flagRedTint)
-	encoder.Encode(ppu.flagGreenTint)
-	encoder.Encode(ppu.flagBlueTint)
+	//encoder.Encode(ppu.flagGrayscale)
+	//encoder.Encode(ppu.flagShowLeftBackground)
+	//encoder.Encode(ppu.flagShowLeftSprites)
+	//encoder.Encode(ppu.flagShowBackground)
+	//encoder.Encode(ppu.flagShowSprites)
+	//encoder.Encode(ppu.flagRedTint)
+	//encoder.Encode(ppu.flagGreenTint)
+	//encoder.Encode(ppu.flagBlueTint)
 	encoder.Encode(ppu.flagSpriteZeroHit)
 	encoder.Encode(ppu.flagSpriteOverflow)
 	encoder.Encode(ppu.oamAddress)
@@ -908,14 +926,14 @@ func (ppu *PPU) Load(decoder *gob.Decoder) error {
 	//decoder.Decode(&ppu.flagBackgroundTable)
 	//decoder.Decode(&ppu.flagSpriteSize)
 	//decoder.Decode(&ppu.flagMasterSlave)
-	decoder.Decode(&ppu.flagGrayscale)
-	decoder.Decode(&ppu.flagShowLeftBackground)
-	decoder.Decode(&ppu.flagShowLeftSprites)
-	decoder.Decode(&ppu.flagShowBackground)
-	decoder.Decode(&ppu.flagShowSprites)
-	decoder.Decode(&ppu.flagRedTint)
-	decoder.Decode(&ppu.flagGreenTint)
-	decoder.Decode(&ppu.flagBlueTint)
+	//decoder.Decode(&ppu.flagGrayscale)
+	//decoder.Decode(&ppu.flagShowLeftBackground)
+	//decoder.Decode(&ppu.flagShowLeftSprites)
+	//decoder.Decode(&ppu.flagShowBackground)
+	//decoder.Decode(&ppu.flagShowSprites)
+	//decoder.Decode(&ppu.flagRedTint)
+	//decoder.Decode(&ppu.flagGreenTint)
+	//decoder.Decode(&ppu.flagBlueTint)
 	decoder.Decode(&ppu.flagSpriteZeroHit)
 	decoder.Decode(&ppu.flagSpriteOverflow)
 	decoder.Decode(&ppu.oamAddress)
@@ -930,7 +948,8 @@ func (ppu *PPU) Reset() {
 	//ppu.writeControl(0)
   ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0xF3FF) | ((uint16(0) & 0x03) << 10)
   ppu.CTRL.Set(0)
-	ppu.writeMask(0)
+	//ppu.writeMask(0)
+  ppu.MASK.Set(0)
 	ppu.writeOAMAddress(0)
 }
 
@@ -971,7 +990,8 @@ func (ppu *PPU) writeRegister(address uint16, value byte) {
     ppu.CTRL.Set(value)
     ppu.ADDR.TAddr = (ppu.ADDR.TAddr & 0xF3FF) | ((uint16(value) & 0x03) << 10)
 	case 0x2001:
-		ppu.writeMask(value)
+		//ppu.writeMask(value)
+    ppu.MASK.Set(value)
 	case 0x2003:
 		ppu.writeOAMAddress(value)
 	case 0x2004:
@@ -990,17 +1010,17 @@ func (ppu *PPU) writeRegister(address uint16, value byte) {
 }
 
 // $2001: PPUMASK
-func (ppu *PPU) writeMask(value byte) {
-  //log.Printf("WROTE MASK %b", value)
-	ppu.flagGrayscale = (value >> 0) & 1
-	ppu.flagShowLeftBackground = (value >> 1) & 1
-	ppu.flagShowLeftSprites = (value >> 2) & 1
-	ppu.flagShowBackground = (value >> 3) & 1
-	ppu.flagShowSprites = (value >> 4) & 1
-	ppu.flagRedTint = (value >> 5) & 1
-	ppu.flagGreenTint = (value >> 6) & 1
-	ppu.flagBlueTint = (value >> 7) & 1
-}
+//func (ppu *PPU) writeMask(value byte) {
+//  //log.Printf("WROTE MASK %b", value)
+//	ppu.flagGrayscale = (value >> 0) & 1
+//	ppu.flagShowLeftBackground = (value >> 1) & 1
+//	ppu.flagShowLeftSprites = (value >> 2) & 1
+//	ppu.flagShowBackground = (value >> 3) & 1
+//	ppu.flagShowSprites = (value >> 4) & 1
+//	ppu.flagRedTint = (value >> 5) & 1
+//	ppu.flagGreenTint = (value >> 6) & 1
+//	ppu.flagBlueTint = (value >> 7) & 1
+//}
 
 // $2002: PPUSTATUS
 func (ppu *PPU) readStatus() byte {
@@ -1265,9 +1285,9 @@ func (ppu *PPU) fetchTileData() uint32 {
 
 func (ppu *PPU) backgroundPixel() byte {
   _ = log.Printf
-	if ppu.flagShowBackground == 0 {
-		//return 0
-	}
+	//if ppu.flagShowBackground == 0 {
+	//	//return 0
+	//}
 	//data := ppu.fetchTileData() >> ((7 - ppu.x) * 4)
 	data := ppu.fetchTileData()
   //log.Printf("BG Pixel %x", data)
@@ -1275,7 +1295,8 @@ func (ppu *PPU) backgroundPixel() byte {
 }
 
 func (ppu *PPU) spritePixel() (byte, byte) {
-	if ppu.flagShowSprites == 0 {
+	//if ppu.flagShowSprites == 0 {
+	if ppu.MASK.showSprites == false {
 		return 0, 0
 	}
 	for i := 0; i < ppu.spriteCount; i++ {
@@ -1453,7 +1474,7 @@ func (ppu *PPU) tick() {
 func (ppu *PPU) Step() {
 	ppu.tick()
 
-	renderingEnabled := ppu.flagShowBackground != 0 || ppu.flagShowSprites != 0
+	renderingEnabled := ppu.MASK.shouldRender()//ppu.flagShowBackground != 0 || ppu.flagShowSprites != 0
 	preLine := ppu.ScanLine == 261
 	visibleLine := ppu.ScanLine < 240
 	// postLine := ppu.ScanLine == 240
