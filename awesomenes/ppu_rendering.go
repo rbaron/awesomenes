@@ -5,6 +5,16 @@ import (
   "image/color"
 )
 
+// From http://www.thealmightyguru.com/Games/Hacking/Wiki/index.php?title=NES_Palette
+var Palette = [64]uint32 {
+0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 0x940084, 0xA80020, 0xA81000, 0x881400, 0x503000, 0x007800, 0x006800, 0x005800,
+0x004058, 0x000000, 0x000000, 0x000000, 0xBCBCBC, 0x0078F8, 0x0058F8, 0x6844FC, 0xD800CC, 0xE40058, 0xF83800, 0xE45C10,
+0xAC7C00, 0x00B800, 0x00A800, 0x00A844, 0x008888, 0x000000, 0x000000, 0x000000, 0xF8F8F8, 0x3CBCFC, 0x6888FC, 0x9878F8,
+0xF878F8, 0xF85898, 0xF87858, 0xFCA044, 0xF8B800, 0xB8F818, 0x58D854, 0x58F898, 0x00E8D8, 0x787878, 0x000000, 0x000000,
+0xFCFCFC, 0xA4E4FC, 0xB8B8F8, 0xD8B8F8, 0xF8B8F8, 0xF8A4C0, 0xF0D0B0, 0xFCE0A8, 0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8,
+0x00FCFC, 0xF8D8F8, 0x000000, 0x000000,
+}
+
 /*
   Screen resolution: 256 cols * 240 rows pixels
   Scanlines: 262 per frame
@@ -15,7 +25,6 @@ import (
 
 func (ppu *PPU) TickScanline() {
   line := ppu.Scanline
-  //log.Printf("Scanline %v", line)
   lineType := scanlineType(line)
 
   // Pre-render scanline
@@ -29,10 +38,6 @@ func (ppu *PPU) TickScanline() {
   } else if line == SCANLINE_NMI {
     if ppu.Dot == 1 {
       ppu.setVerticalBlank()
-      //ppu.STATUS.VBlankStarted = true
-      //if ppu.CTRL.NMIonVBlank {
-      //  ppu.CPU.nmiRequested = true
-      //}
     }
   } else if lineType == SCANLINE_TYPE_POST {
     if ppu.Dot == 0 {
@@ -71,6 +76,54 @@ func (ppu *PPU) tickPreScanline() {
   ppu.tickVisibleScanline()
 }
 
+/*
+var addr uint16
+
+func (ppu *PPU) reload_shift() {
+          ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
+          ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
+}
+
+func (ppu *PPU) tickVisibleScanline() {
+  dot         := ppu.Dot
+
+  switch {
+            case (dot >= 2 && dot <= 255) || (dot >= 322 && dot <= 337):
+                ppu.RenderSinglePixel()
+                switch (dot % 8) {
+                    // Nametable:
+                    case 1:  addr  = ppu.ADDR.NameTableAddr(); ppu.reload_shift();
+                    case 2:  ppu.NameTableLatch    = ppu.Read(addr);
+                    // Attribute:
+                    case 3:  addr  = ppu.ADDR.AttrTableAddr();
+                    case 4:  ppu.AttrTableLatch    = ppu.Read(addr);
+                      shift := ((ppu.ADDR.VAddr >> 4) & 4) | (ppu.ADDR.VAddr & 2)
+                      ppu.AttrTableLatch >>= shift
+                    // Background (low bits):
+                    case 5:  addr  = ppu.LowBGTileAddr();
+                    case 6:  ppu.BgLatchLow   = ppu.Read(addr);
+                    // Background (high bits):
+                    case 7:  addr += 8;
+                    case 0:  ppu.BgLatchHigh = ppu.Read(addr); ppu.ADDR.IncrementCoarseX();
+                };
+            case dot == 256:  ppu.RenderSinglePixel(); ppu.BgLatchHigh = ppu.Read(addr); ppu.ADDR.IncrementFineY();  // Vertical bump.
+            case dot == 257:  ppu.RenderSinglePixel(); ppu.reload_shift(); ppu.ADDR.TransferX(); // Update horizontal position.
+            case dot >= 280 && dot <= 304:  if (ppu.Scanline == 261) { ppu.ADDR.TransferY(); }  // Update vertical position.
+
+            // No shift reloading:
+            case dot == 1:  addr = ppu.ADDR.NameTableAddr(); if (ppu.Scanline == 261) { ppu.STATUS.VBlankStarted = false };
+            case dot == 321 || dot ==  339:  addr = ppu.ADDR.NameTableAddr();
+            // Nametable fetch instead of attribute:
+            case dot == 338:  ppu.NameTableLatch = ppu.Read(addr);
+            case dot == 340:  ppu.NameTableLatch = ppu.Read(addr); if (ppu.Scanline == 261 && ppu.MASK.shouldRender()) { dot++ }// && frameOdd) dot++;
+        }
+        // Signal scanline to mapper:
+        //if (dot == 260 && ppu.shouldRender()) Cartridge::signal_scanline();
+
+      ppu.Dot = dot
+}
+*/
+
 func (ppu *PPU) tickVisibleScanline() {
   dot         := ppu.Dot
   isFetchTime := (dot >= 1 && dot <= 256) || (dot >= 321 && dot <= 336)
@@ -79,7 +132,7 @@ func (ppu *PPU) tickVisibleScanline() {
     return
   }
 
-  if dot >= 0 && dot <= 257 {
+  if dot >= 1 && dot <= 256 {
     ppu.RenderSinglePixel()
   }
 
@@ -99,29 +152,41 @@ func (ppu *PPU) tickVisibleScanline() {
     //}
     ppu.BgTileShiftLow  <<= 1
     ppu.BgTileShiftHigh <<= 1
+    ppu.AttrShiftLow    <<= 1
+    ppu.AttrShiftHigh   <<= 1
+    ppu.AttrShiftLow    |= (ppu.AttrLatchLow  << 0)
+    ppu.AttrShiftHigh   |= (ppu.AttrLatchHigh << 1)
 
     switch ppu.Dot % 8 {
       case 1:
         ppu.tempTileAddr    = ppu.ADDR.NameTableAddr()
-        //if dot > 1 {
+
+        // Feed new nametable data into the bg shift registers
+        //if dot != 1 {
           ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
           ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
+
+          ppu.AttrLatchLow    = (ppu.AttrTableLatch >> 0) & 0x1
+          ppu.AttrLatchHigh   = (ppu.AttrTableLatch >> 1) & 0x1
+
+          //ppu.AttrShiftLow    = (ppu.AttrShiftLow  << 1) | ((ppu.AttrTableLatch >> 0) & 0x1)
+          //ppu.AttrShiftHigh   = (ppu.AttrShiftHigh << 1) | ((ppu.AttrTableLatch >> 1) & 0x1)
         //}
       case 2:
-        //ppu.NameTableLatch = ppu.Read(ppu.ADDR.NameTableAddr())
-        ppu.NameTableLatch = ppu.Read(ppu.tempTileAddr)
+        ppu.NameTableLatch  = ppu.Read(ppu.tempTileAddr)
+      case 3:
+        ppu.tempTileAddr    = ppu.ADDR.AttrTableAddr()
       case 4:
-        //ppu.AttrTableLatch = ppu.Read(ppu.ADDR.AttrTableAddr())
+        shift := ((ppu.ADDR.VAddr >> 4) & 4) | (ppu.ADDR.VAddr & 2)
+        ppu.AttrTableLatch  = ppu.Read(ppu.tempTileAddr) >> shift
       case 5:
         ppu.tempTileAddr    = ppu.LowBGTileAddr()
       case 6:
-        //ppu.BgLatchLow = ppu.Read(ppu.LowBGTileAddr())
-        ppu.BgLatchLow = ppu.Read(ppu.tempTileAddr)
+        ppu.BgLatchLow      = ppu.Read(ppu.tempTileAddr)
       case 7:
         ppu.tempTileAddr    = ppu.HighBGTileAddr()
       case 0:
-        //ppu.BgLatchHigh = ppu.Read(ppu.HighBGTileAddr())
-        ppu.BgLatchHigh = ppu.Read(ppu.tempTileAddr)
+        ppu.BgLatchHigh     = ppu.Read(ppu.tempTileAddr)
         ppu.ADDR.IncrementCoarseX()
     }
   }
@@ -147,6 +212,7 @@ func (ppu *PPU) tickVisibleScanline() {
     ppu.ADDR.TransferX()
   }
 
+  //if isFetchTime && dot % 8 == 0 {
   if isFetchTime && dot % 8 == 0 {
     //ppu.ADDR.IncrementCoarseX()
   }
@@ -179,58 +245,21 @@ func (ppu *PPU) RenderSinglePixel() {
   x := ppu.Dot - 1
 	y := ppu.Scanline
 
-  //log.Printf("Rendering line %v dot %v", line, dot)
-  //log.Printf("VAddr: %x", ppu.ADDR.VAddr)
-
-  //test := ((ppu.BgTileShiftHigh >> 15) << 1) | (ppu.BgTileShiftLow >> 15)
-  //v := uint8((80 * test) & 0xff)
-
-  //if line < 50 {
-  //  v = 0xff
-  //} else {
-  //  v = 0x00
-  //}
-  //v = uint8(80 * (test & 0xff))
-  //v := 40*ppu.backgroundPixel()
   background := uint8(
-    //((ppu.BgTileShiftHigh & 0x1) << 1) |
-    //((ppu.BgTileShiftLow * 0x1) << 0))
-    ((ppu.BgTileShiftHigh >> 15) << 1) |
+    uint16((ppu.AttrShiftHigh >> 7) << 3) |
+    uint16((ppu.AttrShiftLow  >> 7) << 2) |
+    ((ppu.BgTileShiftHigh >> 15) << 1)    |
     ((ppu.BgTileShiftLow  >> 15) << 0))
-  log.Printf("Bg pixel: %x", background)
 
-  cc := color.RGBA{40*background, 40*background, 40*background, 0xff}
+  c := Palette[uint16(background)]
+
+  r := uint8((c >> 16) & 0xff)
+  g := uint8((c >>  8) & 0xff)
+  b := uint8((c >>  0) & 0xff)
+
+  cc := color.RGBA{r, g, b, 0xff}
 
   ppu.back.SetRGBA(x, y, cc)
-
-
-  //log.Printf("BG PIXEL %x", v)
-
-  //ppu.Pixels[line * 255 + dot] = 60*uint8(test)
-  //if line >= 0 && line <= 239 {
-    //v := 80 * uint8(rand.Uint32() & 0x03)
-    //vv := v << 6 | v << 4 | v << 2 | 0x3
-    //ppu.Pixels[3*(line * 256 + dot) + 0] = v
-    //ppu.Pixels[3*(line * 256 + dot) + 1] = v
-    //ppu.Pixels[3*(line * 256 + dot) + 2] = v
-    //ppu.Pixels[4*(line * 255 + dot) + 3] = 0xff
-  //}
-
-  //if line >= 0 && line <= 239 {
-  //  //ppu.Pixels[(line * 256 + dot + 0)] = 40*uint8(test)
-  //  //ppu.Pixels[(line * 256 + dot + 1)] = 40*uint8(test)
-  //  //ppu.Pixels[(line * 256 + dot + 2)] = 40*uint8(test)
-  //  //ppu.Pixels[(line * 256 + dot + 3)] = 0xff
-  //  //ppu.Pixels[1*(line * 255 + dot) + 0] = uint8(line)
-  //  //ppu.Pixels[1*(line * 255 + dot) + 1] = uint8(line)
-  //  //ppu.Pixels[1*(line * 255 + dot) + 2] = uint8(line)
-  //  //ppu.Pixels[1*(line * 255 + dot) + 3] = uint8(line)
-  //  //ppu.Pixels[(line * 256 + dot + 1)] = 40*uint8(test & 0x1)
-  //  //ppu.Pixels[(line * 256 + dot + 2)] = 40*uint8(test & 0x1)
-  //  //ppu.Pixels[(line * 256 + dot + 3)] = 40*uint8(test & 0x1)
-  //}
-
-  //log.Printf("Test: %x line %v", test, line)
 }
 
 // Noop is fine?

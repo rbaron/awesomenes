@@ -498,7 +498,7 @@ func getMirroedAddr(addr uint16) uint16 {
 import (
   "log"
 	"image"
-	"image/color"
+	//"image/color"
   "math"
 )
 
@@ -771,10 +771,18 @@ type PPU struct {
 
   NameTableLatch    uint8
   AttrTableLatch    uint8
+
+  // Background latches & shift registers
   BgLatchLow        uint8
   BgLatchHigh       uint8
   BgTileShiftLow    uint16
   BgTileShiftHigh   uint16
+
+  // Attribute latches & shift registers
+  AttrLatchLow      uint8
+  AttrLatchHigh     uint8
+  AttrShiftLow      uint8
+  AttrShiftHigh     uint8
 
   tempTileAddr      uint16
 
@@ -866,8 +874,10 @@ func NewPPU(cpu *CPU, rom *Rom) *PPU {
 }
 
 func (ppu *PPU) Reset() {
-	ppu.Cycle = 340
-	ppu.ScanLine = 240
+	//ppu.Cycle = 340
+	//ppu.ScanLine = 240
+  ppu.Dot = 340
+  ppu.Scanline = 0
 	ppu.Frame = 0
   ppu.CTRL.Set(0)
   ppu.ADDR.SetOnSCROLLWrite(0)
@@ -1019,54 +1029,6 @@ func (ppu *PPU) fetchAttributeTableByte() {
 	ppu.attributeTableByte = ((ppu.Read(address) >> shift) & 3) << 2
 }
 
-func (ppu *PPU) fetchLowTileByte() {
-	fineY := (ppu.ADDR.VAddr >> 12) & 7
-	table := 1//ppu.flagBackgroundTable
-	tile := ppu.nameTableByte
-	address := 0x1000*uint16(table) + uint16(tile)*16 + fineY
-	ppu.lowTileByte = ppu.Read(address)
-}
-
-func (ppu *PPU) fetchHighTileByte() {
-	fineY := (ppu.ADDR.VAddr >> 12) & 7
-	table := 1//ppu.flagBackgroundTable
-	tile := ppu.nameTableByte
-	address := 0x1000*uint16(table) + uint16(tile)*16 + fineY
-	ppu.highTileByte = ppu.Read(address + 8)
-}
-
-func (ppu *PPU) storeTileData() {
-	var data uint32
-	for i := 0; i < 8; i++ {
-		//a := ppu.attributeTableByte
-		p1 := (ppu.lowTileByte & 0x80) >> 7
-		p2 := (ppu.highTileByte & 0x80) >> 6
-		ppu.lowTileByte <<= 1
-		ppu.highTileByte <<= 1
-		data <<= 4
-		//data |= uint32(a | p1 | p2)
-		data |= uint32(p1 | p2)
-	}
-	ppu.tileData |= uint64(data)
-}
-
-func (ppu *PPU) fetchTileData() uint32 {
-	return uint32(ppu.tileData >> 32)
-}
-
-func (ppu *PPU) backgroundPixel() byte {
-  _ = log.Printf
-	//if ppu.flagShowBackground == 0 {
-	//	//return 0
-	//}
-	//data := ppu.fetchTileData() >> ((7 - ppu.x) * 4)
-	data := ppu.fetchTileData()
-  //log.Printf("BG Pixel %x", data)
-
-
-	return byte(data & 0x0F)
-}
-
 func (ppu *PPU) spritePixel() (byte, byte) {
 	//if ppu.flagShowSprites == 0 {
 	if ppu.MASK.showSprites == false {
@@ -1087,52 +1049,52 @@ func (ppu *PPU) spritePixel() (byte, byte) {
 	return 0, 0
 }
 
-func (ppu *PPU) renderPixel() {
-	//x := ppu.Cycle - 1
-  x := ppu.Dot - 1
-	//y := ppu.ScanLine
-	y := ppu.Scanline
-	//background := ppu.backgroundPixel()
-  //ccc := color.RGBA{R: background, G: 0xff, A: 0xaa}
-  //ppu.back.SetRGBA(x, y, ccc)
-  //return
-  //log.Printf("VAddr: %x", ppu.v)
-	background := ppu.backgroundPixel()
-	//i, sprite := ppu.spritePixel()
-	//if x < 8 && ppu.flagShowLeftBackground == 0 {
-	//	background = 0
-	//}
-	//if x < 8 && ppu.flagShowLeftSprites == 0 {
-	//	sprite = 0
-	//}
-	//b := background%4 != 0
-	//s := sprite%4 != 0
-	//var color byte
-	//if !b && !s {
-	//	color = 0
-	//} else if !b && s {
-	//	color = sprite | 0x10
-	//} else if b && !s {
-	//	color = background
-	//} else {
-	//	if ppu.spriteIndexes[i] == 0 && x < 255 {
-	//		ppu.flagSpriteZeroHit = 1
-	//	}
-	//	if ppu.spritePriorities[i] == 0 {
-	//		color = sprite | 0x10
-	//	} else {
-	//		color = background
-	//	}
-	//}
-  //log.Printf("BG COLOR %x", background)
-	//var color byte
-  //color = background
-	//c := Palette[ppu.readPalette(uint16(color))%64]
-	//ppu.back.SetRGBA(x, y, c)
-  //log.Printf("BG PIXEL: %x", background)
-  cc := color.RGBA{40*background, 40*background, 40*background, 0xff}
-  ppu.back.SetRGBA(x, y, cc)
-}
+//func (ppu *PPU) renderPixel() {
+//	//x := ppu.Cycle - 1
+//  x := ppu.Dot - 1
+//	//y := ppu.ScanLine
+//	y := ppu.Scanline
+//	//background := ppu.backgroundPixel()
+//  //ccc := color.RGBA{R: background, G: 0xff, A: 0xaa}
+//  //ppu.back.SetRGBA(x, y, ccc)
+//  //return
+//  //log.Printf("VAddr: %x", ppu.v)
+//	background := ppu.backgroundPixel()
+//	//i, sprite := ppu.spritePixel()
+//	//if x < 8 && ppu.flagShowLeftBackground == 0 {
+//	//	background = 0
+//	//}
+//	//if x < 8 && ppu.flagShowLeftSprites == 0 {
+//	//	sprite = 0
+//	//}
+//	//b := background%4 != 0
+//	//s := sprite%4 != 0
+//	//var color byte
+//	//if !b && !s {
+//	//	color = 0
+//	//} else if !b && s {
+//	//	color = sprite | 0x10
+//	//} else if b && !s {
+//	//	color = background
+//	//} else {
+//	//	if ppu.spriteIndexes[i] == 0 && x < 255 {
+//	//		ppu.flagSpriteZeroHit = 1
+//	//	}
+//	//	if ppu.spritePriorities[i] == 0 {
+//	//		color = sprite | 0x10
+//	//	} else {
+//	//		color = background
+//	//	}
+//	//}
+//  //log.Printf("BG COLOR %x", background)
+//	//var color byte
+//  //color = background
+//	//c := Palette[ppu.readPalette(uint16(color))%64]
+//	//ppu.back.SetRGBA(x, y, c)
+//  //log.Printf("BG PIXEL: %x", background)
+//  cc := color.RGBA{40*background, 40*background, 40*background, 0xff}
+//  ppu.back.SetRGBA(x, y, cc)
+//}
 
 func (ppu *PPU) fetchSpritePattern(i, row int) uint32 {
   return 0
@@ -1239,78 +1201,78 @@ func (ppu *PPU) tick() {
 }
 
 // Step executes a single PPU cycle
-func (ppu *PPU) Step() {
-	ppu.tick()
-
-	renderingEnabled := ppu.MASK.shouldRender()//ppu.flagShowBackground != 0 || ppu.flagShowSprites != 0
-	preLine := ppu.ScanLine == 261
-	visibleLine := ppu.ScanLine < 240
-	// postLine := ppu.ScanLine == 240
-	renderLine := preLine || visibleLine
-	preFetchCycle := ppu.Cycle >= 321 && ppu.Cycle <= 336
-	visibleCycle := ppu.Cycle >= 1 && ppu.Cycle <= 256
-	fetchCycle := preFetchCycle || visibleCycle
-
-	// background logic
-	if renderingEnabled {
-		if visibleLine && visibleCycle {
-			ppu.renderPixel()
-		}
-		if renderLine && fetchCycle {
-      //log.Printf("tileData: %x", ppu.tileData)
-			ppu.tileData <<= 4
-			switch ppu.Cycle % 8 {
-			case 1:
-				ppu.fetchNameTableByte()
-			case 3:
-				//ppu.fetchAttributeTableByte()
-			case 5:
-				ppu.fetchLowTileByte()
-			case 7:
-				ppu.fetchHighTileByte()
-			case 0:
-				ppu.storeTileData()
-			}
-		}
-		if preLine && ppu.Cycle >= 280 && ppu.Cycle <= 304 {
-			ppu.ADDR.TransferY()
-		}
-		if renderLine {
-			if fetchCycle && ppu.Cycle%8 == 0 {
-				ppu.ADDR.IncrementCoarseX()
-			}
-			if ppu.Cycle == 256 {
-				ppu.ADDR.IncrementFineY()
-        //ppu.incrementY()
-			}
-			if ppu.Cycle == 257 {
-        ppu.ADDR.TransferX()
-			}
-		}
-	}
-
-	// sprite logic
-	//if renderingEnabled {
-	//	if ppu.Cycle == 257 {
-	//		if visibleLine {
-	//			ppu.evaluateSprites()
-	//		} else {
-	//			ppu.spriteCount = 0
-	//		}
-	//	}
-	//}
-
-	// vblank logic
-	if ppu.ScanLine == 241 && ppu.Cycle == 1 {
-		ppu.setVerticalBlank()
-    //ppu.console.CPU.triggerNMI()
-	}
-	if preLine && ppu.Cycle == 1 {
-    ppu.STATUS.VBlankStarted  = false
-    ppu.STATUS.Sprite0Hit     = false
-    ppu.STATUS.SpriteOverflow = false
-	}
-}
+//func (ppu *PPU) Step() {
+//	ppu.tick()
+//
+//	renderingEnabled := ppu.MASK.shouldRender()//ppu.flagShowBackground != 0 || ppu.flagShowSprites != 0
+//	preLine := ppu.ScanLine == 261
+//	visibleLine := ppu.ScanLine < 240
+//	// postLine := ppu.ScanLine == 240
+//	renderLine := preLine || visibleLine
+//	preFetchCycle := ppu.Cycle >= 321 && ppu.Cycle <= 336
+//	visibleCycle := ppu.Cycle >= 1 && ppu.Cycle <= 256
+//	fetchCycle := preFetchCycle || visibleCycle
+//
+//	// background logic
+//	if renderingEnabled {
+//		if visibleLine && visibleCycle {
+//			ppu.renderPixel()
+//		}
+//		if renderLine && fetchCycle {
+//      //log.Printf("tileData: %x", ppu.tileData)
+//			ppu.tileData <<= 4
+//			switch ppu.Cycle % 8 {
+//			case 1:
+//				ppu.fetchNameTableByte()
+//			case 3:
+//				//ppu.fetchAttributeTableByte()
+//			case 5:
+//				ppu.fetchLowTileByte()
+//			case 7:
+//				ppu.fetchHighTileByte()
+//			case 0:
+//				ppu.storeTileData()
+//			}
+//		}
+//		if preLine && ppu.Cycle >= 280 && ppu.Cycle <= 304 {
+//			ppu.ADDR.TransferY()
+//		}
+//		if renderLine {
+//			if fetchCycle && ppu.Cycle%8 == 0 {
+//				ppu.ADDR.IncrementCoarseX()
+//			}
+//			if ppu.Cycle == 256 {
+//				ppu.ADDR.IncrementFineY()
+//        //ppu.incrementY()
+//			}
+//			if ppu.Cycle == 257 {
+//        ppu.ADDR.TransferX()
+//			}
+//		}
+//	}
+//
+//	// sprite logic
+//	//if renderingEnabled {
+//	//	if ppu.Cycle == 257 {
+//	//		if visibleLine {
+//	//			ppu.evaluateSprites()
+//	//		} else {
+//	//			ppu.spriteCount = 0
+//	//		}
+//	//	}
+//	//}
+//
+//	// vblank logic
+//	if ppu.ScanLine == 241 && ppu.Cycle == 1 {
+//		ppu.setVerticalBlank()
+//    //ppu.console.CPU.triggerNMI()
+//	}
+//	if preLine && ppu.Cycle == 1 {
+//    ppu.STATUS.VBlankStarted  = false
+//    ppu.STATUS.Sprite0Hit     = false
+//    ppu.STATUS.SpriteOverflow = false
+//	}
+//}
 
 // From memory
 
