@@ -1002,9 +1002,9 @@ func (ppu *PPU) setVerticalBlank() {
 
       // The 0 positiion seems to have no effect in any value
       ppu.Pixels[pos + 0] = 0xff//uint8(mean)
-      ppu.Pixels[pos + 1] = uint8(r & 0xff)
+      ppu.Pixels[pos + 1] = uint8(b & 0xff)
       ppu.Pixels[pos + 2] = uint8(g & 0xff)
-      ppu.Pixels[pos + 3] = uint8(b & 0xff)
+      ppu.Pixels[pos + 3] = uint8(r & 0xff)
     }
   }
 

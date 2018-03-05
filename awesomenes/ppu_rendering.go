@@ -7,12 +7,14 @@ import (
 
 // From http://www.thealmightyguru.com/Games/Hacking/Wiki/index.php?title=NES_Palette
 var Palette = [64]uint32 {
-0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 0x940084, 0xA80020, 0xA81000, 0x881400, 0x503000, 0x007800, 0x006800, 0x005800,
-0x004058, 0x000000, 0x000000, 0x000000, 0xBCBCBC, 0x0078F8, 0x0058F8, 0x6844FC, 0xD800CC, 0xE40058, 0xF83800, 0xE45C10,
-0xAC7C00, 0x00B800, 0x00A800, 0x00A844, 0x008888, 0x000000, 0x000000, 0x000000, 0xF8F8F8, 0x3CBCFC, 0x6888FC, 0x9878F8,
-0xF878F8, 0xF85898, 0xF87858, 0xFCA044, 0xF8B800, 0xB8F818, 0x58D854, 0x58F898, 0x00E8D8, 0x787878, 0x000000, 0x000000,
-0xFCFCFC, 0xA4E4FC, 0xB8B8F8, 0xD8B8F8, 0xF8B8F8, 0xF8A4C0, 0xF0D0B0, 0xFCE0A8, 0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8,
-0x00FCFC, 0xF8D8F8, 0x000000, 0x000000,
+0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 0x940084, 0xA80020, 0xA81000, 0x881400,
+0x503000, 0x007800, 0x006800, 0x005800, 0x004058, 0x000000, 0x000000, 0x000000,
+0xBCBCBC, 0x0078F8, 0x0058F8, 0x6844FC, 0xD800CC, 0xE40058, 0xF83800, 0xE45C10,
+0xAC7C00, 0x00B800, 0x00A800, 0x00A844, 0x008888, 0x000000, 0x000000, 0x000000,
+0xF8F8F8, 0x3CBCFC, 0x6888FC, 0x9878F8, 0xF878F8, 0xF85898, 0xF87858, 0xFCA044,
+0xF8B800, 0xB8F818, 0x58D854, 0x58F898, 0x00E8D8, 0x787878, 0x000000, 0x000000,
+0xFCFCFC, 0xA4E4FC, 0xB8B8F8, 0xD8B8F8, 0xF8B8F8, 0xF8A4C0, 0xF0D0B0, 0xFCE0A8,
+0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8, 0x00FCFC, 0xF8D8F8, 0x000000, 0x000000,
 }
 
 /*
@@ -76,53 +78,6 @@ func (ppu *PPU) tickPreScanline() {
   ppu.tickVisibleScanline()
 }
 
-/*
-var addr uint16
-
-func (ppu *PPU) reload_shift() {
-          ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
-          ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
-}
-
-func (ppu *PPU) tickVisibleScanline() {
-  dot         := ppu.Dot
-
-  switch {
-            case (dot >= 2 && dot <= 255) || (dot >= 322 && dot <= 337):
-                ppu.RenderSinglePixel()
-                switch (dot % 8) {
-                    // Nametable:
-                    case 1:  addr  = ppu.ADDR.NameTableAddr(); ppu.reload_shift();
-                    case 2:  ppu.NameTableLatch    = ppu.Read(addr);
-                    // Attribute:
-                    case 3:  addr  = ppu.ADDR.AttrTableAddr();
-                    case 4:  ppu.AttrTableLatch    = ppu.Read(addr);
-                      shift := ((ppu.ADDR.VAddr >> 4) & 4) | (ppu.ADDR.VAddr & 2)
-                      ppu.AttrTableLatch >>= shift
-                    // Background (low bits):
-                    case 5:  addr  = ppu.LowBGTileAddr();
-                    case 6:  ppu.BgLatchLow   = ppu.Read(addr);
-                    // Background (high bits):
-                    case 7:  addr += 8;
-                    case 0:  ppu.BgLatchHigh = ppu.Read(addr); ppu.ADDR.IncrementCoarseX();
-                };
-            case dot == 256:  ppu.RenderSinglePixel(); ppu.BgLatchHigh = ppu.Read(addr); ppu.ADDR.IncrementFineY();  // Vertical bump.
-            case dot == 257:  ppu.RenderSinglePixel(); ppu.reload_shift(); ppu.ADDR.TransferX(); // Update horizontal position.
-            case dot >= 280 && dot <= 304:  if (ppu.Scanline == 261) { ppu.ADDR.TransferY(); }  // Update vertical position.
-
-            // No shift reloading:
-            case dot == 1:  addr = ppu.ADDR.NameTableAddr(); if (ppu.Scanline == 261) { ppu.STATUS.VBlankStarted = false };
-            case dot == 321 || dot ==  339:  addr = ppu.ADDR.NameTableAddr();
-            // Nametable fetch instead of attribute:
-            case dot == 338:  ppu.NameTableLatch = ppu.Read(addr);
-            case dot == 340:  ppu.NameTableLatch = ppu.Read(addr); if (ppu.Scanline == 261 && ppu.MASK.shouldRender()) { dot++ }// && frameOdd) dot++;
-        }
-        // Signal scanline to mapper:
-        //if (dot == 260 && ppu.shouldRender()) Cartridge::signal_scanline();
-
-      ppu.Dot = dot
-}
-*/
 
 func (ppu *PPU) tickVisibleScanline() {
   dot         := ppu.Dot
@@ -137,19 +92,7 @@ func (ppu *PPU) tickVisibleScanline() {
   }
 
   if isFetchTime {
-    //ppu.tileData <<= 4
-    //switch dot % 8 {
-    // case 1:
-    //   ppu.fetchNameTableByte()
-    // case 3:
-    //   //ppu.fetchAttributeTableByte()
-    // case 5:
-    //   ppu.fetchLowTileByte()
-    // case 7:
-    //   ppu.fetchHighTileByte()
-    // case 0:
-    //   ppu.storeTileData()
-    //}
+
     ppu.BgTileShiftLow  <<= 1
     ppu.BgTileShiftHigh <<= 1
     ppu.AttrShiftLow    <<= 1
@@ -161,17 +104,13 @@ func (ppu *PPU) tickVisibleScanline() {
       case 1:
         ppu.tempTileAddr    = ppu.ADDR.NameTableAddr()
 
-        // Feed new nametable data into the bg shift registers
-        //if dot != 1 {
-          ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
-          ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
+        // Feed new data into the background tile latches
+        ppu.BgTileShiftLow  |= uint16(ppu.BgLatchLow)
+        ppu.BgTileShiftHigh |= uint16(ppu.BgLatchHigh)
 
-          ppu.AttrLatchLow    = (ppu.AttrTableLatch >> 0) & 0x1
-          ppu.AttrLatchHigh   = (ppu.AttrTableLatch >> 1) & 0x1
-
-          //ppu.AttrShiftLow    = (ppu.AttrShiftLow  << 1) | ((ppu.AttrTableLatch >> 0) & 0x1)
-          //ppu.AttrShiftHigh   = (ppu.AttrShiftHigh << 1) | ((ppu.AttrTableLatch >> 1) & 0x1)
-        //}
+        // Feed new data into the attribute latches
+        ppu.AttrLatchLow    = (ppu.AttrTableLatch >> 0) & 0x1
+        ppu.AttrLatchHigh   = (ppu.AttrTableLatch >> 1) & 0x1
       case 2:
         ppu.NameTableLatch  = ppu.Read(ppu.tempTileAddr)
       case 3:
@@ -202,13 +141,10 @@ func (ppu *PPU) tickVisibleScanline() {
   // Housekeeping. See http://wiki.nesdev.com/w/index.php/PPU_scrolling
 
   if dot == 256 {
-    //ppu.RenderSinglePixel()
-    //ppu.BgLatchLow = ppu.Read(ppu.tempTileAddr)
     ppu.ADDR.IncrementFineY()
   }
 
   if dot == 257 {
-    //ppu.RenderSinglePixel()
     ppu.ADDR.TransferX()
   }
 
@@ -245,19 +181,26 @@ func (ppu *PPU) RenderSinglePixel() {
   x := ppu.Dot - 1
 	y := ppu.Scanline
 
+
+  // TODO: account for fine X scrolling
   background := uint8(
     uint16((ppu.AttrShiftHigh >> 7) << 3) |
     uint16((ppu.AttrShiftLow  >> 7) << 2) |
     ((ppu.BgTileShiftHigh >> 15) << 1)    |
     ((ppu.BgTileShiftLow  >> 15) << 0))
 
-  c := Palette[uint16(background)]
+  if background & 0x03 == 0x0 {
+    background = 0
+  }
+
+  addr := ppu.Read(0x3f00 + uint16(background))
+  c := Palette[addr]
 
   r := uint8((c >> 16) & 0xff)
   g := uint8((c >>  8) & 0xff)
   b := uint8((c >>  0) & 0xff)
 
-  cc := color.RGBA{r, g, b, 0xff}
+  cc := color.RGBA{r, g, b, 0x00}
 
   ppu.back.SetRGBA(x, y, cc)
 }
