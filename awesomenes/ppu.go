@@ -550,6 +550,8 @@ func (ctrl *PPUCTRL) Set(v uint8) {
   ctrl.SpriteSize         = boolSetter(v, 5, SPRITE_SIZE_8, SPRITE_SIZE_16)
   ctrl.MasterSlave        = boolSetter(v, 6, MS_READ_EXT, MS_WRITE_EXT)
   ctrl.NMIonVBlank        = boolSetter(v, 7, false, true)
+
+  //log.Printf("Set CTRL WITH NMIonVBlank: %v", ctrl.NMIonVBlank)
 }
 
 type PPUADDR struct {
@@ -742,6 +744,7 @@ func (status *PPUSTATUS) Get() (result uint8) {
   result |= (status.LastWrite & 0x1f)
 
   status.VBlankStarted = false
+
   return
 }
 
@@ -786,8 +789,8 @@ type PPU struct {
 
   tempTileAddr      uint16
 
-	Cycle    int    // 0-340
-	ScanLine int    // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
+	//Cycle    int    // 0-340
+	//ScanLine int    // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
 	Frame    uint64 // frame counter
 
 	// storage variables
@@ -804,7 +807,7 @@ type PPU struct {
 	//w byte   // write toggle (1 bit)
 	f byte   // even/odd frame flag (1 bit)
 
-	register byte
+	//register byte
 
 	// NMI flags
 	//nmiOccurred bool
@@ -813,11 +816,11 @@ type PPU struct {
 	//nmiDelay    byte
 
 	// background temporary variables
-	nameTableByte      byte
-	attributeTableByte byte
-	lowTileByte        byte
-	highTileByte       byte
-	tileData           uint64
+	//nameTableByte      byte
+	//attributeTableByte byte
+	//lowTileByte        byte
+	//highTileByte       byte
+	//tileData           uint64
 
 	// sprite temporary variables
 	spriteCount      int
@@ -934,7 +937,7 @@ func (ppu *PPU) WriteData(v uint8) {
 
 func (ppu *PPU) writeRegister(address uint16, value byte) {
   //log.Printf("Writing ppu reg %x: %b", address, value)
-	ppu.register = value
+	//ppu.register = value
   ppu.STATUS.LastWrite = value
 	switch address {
 	case 0x2000:
@@ -976,13 +979,15 @@ func (ppu *PPU) writeOAMData(value byte) {
 
 // $4014: OAMDMA
 func (ppu *PPU) writeDMA(value byte) {
+  //log.Printf("WIll do DMA")
 	//cpu := ppu.console.CPU
-	//address := uint16(value) << 8
-	//for i := 0; i < 256; i++ {
-	//	ppu.oamData[ppu.oamAddress] = cpu.Read(address)
-	//	ppu.oamAddress++
-	//	address++
-	//}
+	//cpu := ppu.CPU
+	address := uint16(value) << 8
+	for i := 0; i < 256; i++ {
+		ppu.oamData[ppu.oamAddress] = ppu.CPU.mem.Read8(address)
+		ppu.oamAddress++
+		address++
+	}
 	//cpu.stall += 513
 	//if cpu.Cycles%2 == 1 {
 	//	cpu.stall++
@@ -1013,22 +1018,25 @@ func (ppu *PPU) setVerticalBlank() {
 	ppu.STATUS.VBlankStarted = true
   if ppu.CTRL.NMIonVBlank {
     ppu.CPU.nmiRequested = true
+  } else {
+    //log.Printf("Skipping NMI")
   }
 }
 
-func (ppu *PPU) fetchNameTableByte() {
-	v := ppu.ADDR.VAddr
-	address := 0x2000 | (v & 0x0FFF)
-	ppu.nameTableByte = ppu.Read(address)
-}
+//func (ppu *PPU) fetchNameTableByte() {
+//	v := ppu.ADDR.VAddr
+//	address := 0x2000 | (v & 0x0FFF)
+//	ppu.nameTableByte = ppu.Read(address)
+//}
+//
+//func (ppu *PPU) fetchAttributeTableByte() {
+//	v := ppu.ADDR.VAddr
+//	address := 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
+//	shift := ((v >> 4) & 4) | (v & 2)
+//	ppu.attributeTableByte = ((ppu.Read(address) >> shift) & 3) << 2
+//}
 
-func (ppu *PPU) fetchAttributeTableByte() {
-	v := ppu.ADDR.VAddr
-	address := 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
-	shift := ((v >> 4) & 4) | (v & 2)
-	ppu.attributeTableByte = ((ppu.Read(address) >> shift) & 3) << 2
-}
-
+/*
 func (ppu *PPU) spritePixel() (byte, byte) {
 	//if ppu.flagShowSprites == 0 {
 	if ppu.MASK.showSprites == false {
@@ -1048,6 +1056,7 @@ func (ppu *PPU) spritePixel() (byte, byte) {
 	}
 	return 0, 0
 }
+*/
 
 //func (ppu *PPU) renderPixel() {
 //	//x := ppu.Cycle - 1
@@ -1096,9 +1105,9 @@ func (ppu *PPU) spritePixel() (byte, byte) {
 //  ppu.back.SetRGBA(x, y, cc)
 //}
 
+  /*
 func (ppu *PPU) fetchSpritePattern(i, row int) uint32 {
   return 0
-  /*
 	tile := ppu.oamData[i*4+1]
 	attributes := ppu.oamData[i*4+2]
 	var address uint16
@@ -1141,11 +1150,11 @@ func (ppu *PPU) fetchSpritePattern(i, row int) uint32 {
 		data |= uint32(a | p1 | p2)
 	}
 	return data
-  */
 }
+  */
 
+/*
 func (ppu *PPU) evaluateSprites() {
-  /*
 	var h int
 	if ppu.flagSpriteSize == 0 {
 		h = 8
@@ -1174,10 +1183,11 @@ func (ppu *PPU) evaluateSprites() {
 		ppu.flagSpriteOverflow = 1
 	}
 	ppu.spriteCount = count
-  */
 }
+*/
 
 // tick updates Cycle, ScanLine and Frame counters
+/*
 func (ppu *PPU) tick() {
 	//if ppu.flagShowBackground != 0 || ppu.flagShowSprites != 0 {
 	//	if ppu.f == 1 && ppu.ScanLine == 261 && ppu.Cycle == 339 {
@@ -1199,6 +1209,7 @@ func (ppu *PPU) tick() {
 		}
 	}
 }
+*/
 
 // Step executes a single PPU cycle
 //func (ppu *PPU) Step() {

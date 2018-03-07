@@ -68,14 +68,17 @@ func (cpu *CPU) PowerUp() {
   //cpu.regs.PC = 0xc000
 }
 
+var count = 0
+
 func (cpu *CPU) Run() int {
 
   if cpu.nmiRequested {
-    log.Printf("WIll do NMI!\n")
+    //log.Printf("WIll do NMI %d!\n", count)
+    count++
     cpu.doNMI()
   }
 
-  fmt.Printf("%v", cpu)
+  //fmt.Printf("%v", cpu)
 
   opcode := cpu.mem.Read8(cpu.regs.PC)
   instr, ok := instrTable[opcode]

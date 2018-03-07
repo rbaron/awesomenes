@@ -58,7 +58,8 @@ func main() {
     if cpuCycles > frameCycles {
       cpuCycles = 0
       tv.ShowPixels()
-      time.Sleep(10000000)
+      //time.Sleep(100)
+      _ = time.Sleep
     }
   }
   return

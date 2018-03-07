@@ -72,6 +72,8 @@ func (ppu *PPU) tickPreScanline() {
     if ppu.MASK.shouldRender() {
       ppu.ADDR.TransferY()
     }
+  } else if dot == 257 {
+    ppu.spriteCount = 0
   }
 
   // Now do everything a visible line does
@@ -132,11 +134,12 @@ func (ppu *PPU) tickVisibleScanline() {
 
   // Sprite evaluation
 
-  //if dot == 1 {
-  //  ppu.ClearSecondaryOAM()
-  //} else if dot == 256 {
-  //  ppu.EvalSprites()
-  //}
+  if dot == 1 {
+    //ppu.ClearSecondaryOAM()
+  } else if dot == 257 {
+    ppu.EvalSprites()
+    //ppu.evaluateSprites()
+  }
 
   // Housekeeping. See http://wiki.nesdev.com/w/index.php/PPU_scrolling
 
@@ -178,22 +181,45 @@ func (addr *PPUADDR) FineY() uint16 {
 }
 
 func (ppu *PPU) RenderSinglePixel() {
-  x := ppu.Dot - 1
-	y := ppu.Scanline
-
+  x  := ppu.Dot - 2
+	y  := ppu.Scanline
+  fx := ppu.ADDR.FineXScroll
 
   // TODO: account for fine X scrolling
   background := uint8(
-    uint16((ppu.AttrShiftHigh >> 7) << 3) |
-    uint16((ppu.AttrShiftLow  >> 7) << 2) |
-    ((ppu.BgTileShiftHigh >> 15) << 1)    |
-    ((ppu.BgTileShiftLow  >> 15) << 0))
+    uint16((ppu.AttrShiftHigh >> (7 - fx)) << 3) |
+    uint16((ppu.AttrShiftLow  >> (7 - fx)) << 2) |
+    ((ppu.BgTileShiftHigh >> (15 - fx)) << 1)    |
+    ((ppu.BgTileShiftLow  >> (15 - fx)) << 0))
 
-  if background & 0x03 == 0x0 {
+  if ppu.MASK.showBg == false || background & 0x03 == 0x0 {
     background = 0
   }
 
-  addr := ppu.Read(0x3f00 + uint16(background))
+  i, sprite := ppu.spritePixel()
+
+	b1 := background%4 != 0
+	s := sprite%4 != 0
+
+	var color1 byte
+	if !b1 && !s {
+		color1 = 0
+	} else if !b1 && s {
+		color1 = sprite | 0x10
+	} else if b1 && !s {
+		color1 = background
+	} else {
+		if ppu.spriteIndexes[i] == 0 && x < 255 {
+      ppu.STATUS.Sprite0Hit = true
+    }
+		if ppu.spritePriorities[i] == 0 {
+			color1 = sprite | 0x10
+		} else {
+			color1 = background
+		}
+	}
+
+  addr := ppu.Read(0x3f00 + uint16(color1))
   c := Palette[addr]
 
   r := uint8((c >> 16) & 0xff)
@@ -211,7 +237,102 @@ func (ppu *PPU) ClearSecondaryOAM() {
 }
 
 func (ppu *PPU) EvalSprites() {
-  return
+	var h int
+  if ppu.CTRL.SpriteSize == SPRITE_SIZE_8 {
+		h = 8
+	} else {
+		h = 16
+	}
+	count := 0
+	for i := 0; i < 64; i++ {
+		y := ppu.oamData[i*4+0]
+		a := ppu.oamData[i*4+2]
+		x := ppu.oamData[i*4+3]
+		row := ppu.Scanline - int(y)
+		if row < 0 || row >= h {
+			continue
+		}
+		if count < 8 {
+			ppu.spritePatterns[count] = ppu.fetchSpritePattern(i, row)
+			ppu.spritePositions[count] = x
+			ppu.spritePriorities[count] = (a >> 5) & 1
+			ppu.spriteIndexes[count] = byte(i)
+		}
+		count++
+	}
+	if count > 8 {
+		count = 8
+    ppu.STATUS.SpriteOverflow = true
+	}
+	ppu.spriteCount = count
+}
+
+func (ppu *PPU) fetchSpritePattern(i int, row int) uint32 {
+	tile := ppu.oamData[i*4+1]
+	attributes := ppu.oamData[i*4+2]
+	var address uint16
+	//if ppu.flagSpriteSize == 0 {
+  if ppu.CTRL.SpriteSize == SPRITE_SIZE_8 {
+		if attributes&0x80 == 0x80 {
+			row = 7 - row
+		}
+		//table := ppu.flagSpriteTable
+		//address = 0x1000*uint16(table) + uint16(tile)*16 + uint16(row)
+    address = ppu.CTRL.SpritePatTableAddr + uint16(tile)*16 + uint16(row)
+	} else {
+		if attributes&0x80 == 0x80 {
+			row = 15 - row
+		}
+		//table := tile & 1
+		tile &= 0xFE
+		if row > 7 {
+			tile++
+			row -= 8
+		}
+		//address = 0x1000*uint16(table) + uint16(tile)*16 + uint16(row)
+    address = ppu.CTRL.SpritePatTableAddr + uint16(tile)*16 + uint16(row)
+	}
+	a := (attributes & 3) << 2
+	lowTileByte := ppu.Read(address)
+	highTileByte := ppu.Read(address + 8)
+	var data uint32
+	for i := 0; i < 8; i++ {
+		var p1, p2 byte
+		if attributes&0x40 == 0x40 {
+			p1 = (lowTileByte & 1) << 0
+			p2 = (highTileByte & 1) << 1
+			lowTileByte >>= 1
+			highTileByte >>= 1
+		} else {
+			p1 = (lowTileByte & 0x80) >> 7
+			p2 = (highTileByte & 0x80) >> 6
+			lowTileByte <<= 1
+			highTileByte <<= 1
+		}
+		data <<= 4
+		data |= uint32(a | p1 | p2)
+	}
+	return data
+}
+
+func (ppu *PPU) spritePixel() (byte, byte) {
+	if ppu.MASK.showSprites == false {
+		return 0, 0
+	}
+
+	for i := 0; i < ppu.spriteCount; i++ {
+		offset := (ppu.Dot - 1) - int(ppu.spritePositions[i])
+		if offset < 0 || offset > 7 {
+			continue
+		}
+		offset = 7 - offset
+		color := byte((ppu.spritePatterns[i] >> byte(offset*4)) & 0x0F)
+		if color%4 == 0 {
+			continue
+		}
+		return byte(i), color
+	}
+	return 0, 0
 }
 
 const (
