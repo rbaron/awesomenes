@@ -185,12 +185,11 @@ func (ppu *PPU) RenderSinglePixel() {
 	y  := ppu.Scanline
   fx := ppu.ADDR.FineXScroll
 
-  // TODO: account for fine X scrolling
   background := uint8(
-    uint16((ppu.AttrShiftHigh >> (7 - fx)) << 3) |
-    uint16((ppu.AttrShiftLow  >> (7 - fx)) << 2) |
-    ((ppu.BgTileShiftHigh >> (15 - fx)) << 1)    |
-    ((ppu.BgTileShiftLow  >> (15 - fx)) << 0))
+    uint16(((ppu.AttrShiftHigh >> (7 - fx)) & 0x1) << 3) |
+    uint16(((ppu.AttrShiftLow  >> (7 - fx)) & 0x1) << 2) |
+    (((ppu.BgTileShiftHigh >> (15 - fx)) & 0x1) << 1)  |
+    (((ppu.BgTileShiftLow  >> (15 - fx)) & 0x1) << 0))
 
   if ppu.MASK.showBg == false || background & 0x03 == 0x0 {
     background = 0

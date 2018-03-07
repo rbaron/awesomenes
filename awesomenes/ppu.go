@@ -632,15 +632,10 @@ func (addr *PPUADDR) SetOnSTATUSRead() {
 
 func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
   if addr.WriteHi == false {
-    //addr.TAddr |= uint16(v >> 3)
-    //addr.FineXScroll = v & 0x3
+    addr.TAddr = (addr.TAddr & 0xFFE0) | uint16(v >> 3)
+    addr.FineXScroll = v & 0x7
     addr.WriteHi = true
-
-    addr.TAddr = (addr.TAddr & 0xFFE0) | uint16(v)
-    addr.FineXScroll = v & 0x07
   } else {
-    //addr.TAddr |= uint16(v & 0x03) << 12
-    //addr.TAddr |= uint16(v & 0xf8) << 2
     addr.TAddr = (addr.TAddr & 0x8FFF) | ((uint16(v) & 0x07) << 12)
     addr.TAddr = (addr.TAddr & 0xFC1F) | ((uint16(v) & 0xF8) << 2)
     addr.WriteHi = false
