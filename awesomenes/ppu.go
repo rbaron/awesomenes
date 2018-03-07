@@ -503,6 +503,9 @@ import (
 )
 
 // MINE
+func byteSetter(v uint8, bitN uint8, ifNotSet uint8, ifSet uint8) uint8 {
+  if v & (0x1 << bitN) == 0 { return ifNotSet } else { return ifSet }
+}
 
 func addrSetter(v uint8, bitN uint8, ifNotSet uint16, ifSet uint16) uint16 {
   if v & (0x1 << bitN) == 0 { return ifNotSet } else { return ifSet }
@@ -528,6 +531,7 @@ type PPUCTRL struct {
   SpritePatTableAddr   uint16
   BgTableAddr          uint16
   SpriteSize           bool
+  SpriteSizeU           uint8
   MasterSlave          bool
   NMIonVBlank          bool
 }
@@ -548,6 +552,7 @@ func (ctrl *PPUCTRL) Set(v uint8) {
   ctrl.SpritePatTableAddr = addrSetter(v, 3, 0x0000, 0x1000)
   ctrl.BgTableAddr        = addrSetter(v, 4, 0x0000, 0x1000)
   ctrl.SpriteSize         = boolSetter(v, 5, SPRITE_SIZE_8, SPRITE_SIZE_16)
+  ctrl.SpriteSizeU        = byteSetter(v, 5, 8, 16)
   ctrl.MasterSlave        = boolSetter(v, 6, MS_READ_EXT, MS_WRITE_EXT)
   ctrl.NMIonVBlank        = boolSetter(v, 7, false, true)
 
@@ -745,6 +750,17 @@ func (status *PPUSTATUS) Get() (result uint8) {
 
 // ENDOF MINE
 
+type OAMEntry struct {
+  id           int
+  x            uint8
+  attrs        uint8
+  priority     uint8
+  tileLow      uint8
+  tileHigh     uint8
+
+  patt         uint32
+}
+
 type PPU struct {
 
   // MINE
@@ -783,6 +799,12 @@ type PPU struct {
   AttrShiftHigh     uint8
 
   tempTileAddr      uint16
+
+  // Holds 8 OAM entries for a scanline
+  oam               [4 * 8]uint8
+  oamTiles          [2 * 8]uint8
+	spriteCount2      int
+  oamEntries        [8]OAMEntry
 
 	//Cycle    int    // 0-340
 	//ScanLine int    // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
