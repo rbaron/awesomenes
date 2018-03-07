@@ -42,9 +42,10 @@ func (ppu *PPU) TickScanline() {
       ppu.setVerticalBlank()
     }
   } else if lineType == SCANLINE_TYPE_POST {
-    if ppu.Dot == 0 {
-      //ppu.TV.SetFrame(ppu.Pixels)
-    }
+    // Currently setting frame at the same time as vblank is triggered
+    //if ppu.Dot == 0 {
+    //  //ppu.TV.SetFrame(ppu.Pixels)
+    //}
   }
 
   ppu.Dot += 1
@@ -73,7 +74,6 @@ func (ppu *PPU) tickPreScanline() {
     }
   } else if dot == 257 {
     ppu.spriteCount = 0
-    ppu.spriteCount2 = 0
   }
 
   // Now do everything a visible line does
@@ -92,7 +92,6 @@ func (ppu *PPU) tickVisibleScanline() {
   if dot >= 1 && dot <= 256 {
     ppu.RenderSinglePixel()
   }
-
 
   // Background evaluation
 
@@ -137,11 +136,8 @@ func (ppu *PPU) tickVisibleScanline() {
 
   // Sprite evaluation
 
-  if dot == 1 {
-    //ppu.ClearSecondaryOAM()
-  } else if dot == 257 {
-    //ppu.EvalSprites()
-    ppu.EvalSprites2()
+  if dot == 257 {
+    ppu.EvalSprites()
   }
 
   if dot == 256 {
@@ -151,28 +147,6 @@ func (ppu *PPU) tickVisibleScanline() {
   if dot == 257 {
     ppu.ADDR.TransferX()
   }
-}
-
-func (ppu *PPU) LowBGTileAddr() uint16 {
-  return ppu.CTRL.BgTableAddr + uint16(ppu.NameTableLatch) * 16 + ppu.ADDR.FineY()
-}
-
-func (ppu *PPU) HighBGTileAddr() uint16 {
-  return ppu.LowBGTileAddr() + 8
-}
-
-func (addr *PPUADDR) NameTableAddr() uint16 {
-  return 0x2000 | (addr.VAddr & 0x0fff)
-}
-
-// http://wiki.nesdev.com/w/index.php/PPU_scrolling
-func (addr *PPUADDR) AttrTableAddr() uint16 {
-  v := addr.VAddr
-  return 0x23c0 | (v & 0x0c00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
-}
-
-func (addr *PPUADDR) FineY() uint16 {
-  return (addr.VAddr >> 12) & 0x07
 }
 
 func (ppu *PPU) RenderSinglePixel() {
@@ -188,13 +162,10 @@ func (ppu *PPU) RenderSinglePixel() {
       uint16(((ppu.AttrShiftHigh >> (7 - fx)) & 0x1) << 3) |
       uint16(((ppu.AttrShiftLow  >> (7 - fx)) & 0x1) << 2) |
       (((ppu.BgTileShiftHigh >> (15 - fx)) & 0x1) << 1)    |
-      (((ppu.BgTileShiftLow  >> (15 - fx)) & 0x1) << 0))
+      (((ppu.BgTileShiftLow  >> (15 - fx)) & 0x1) << 0)) & 0x0f
   }
 
-  //i, sprite := ppu.spritePixel()
-  i, sprite := ppu.spritePixel2()
-
-  entry := ppu.oamEntries[i]
+  oamEntry, sprite := ppu.spritePixel()
 
 	b1 := background%4 != 0
 	s := sprite%4 != 0
@@ -207,12 +178,10 @@ func (ppu *PPU) RenderSinglePixel() {
 	} else if b1 && !s {
 		color1 = background
 	} else {
-	  //if ppu.spriteIndexes[i] == 0 && x < 255 {
-		if entry.id == 0 && x < 255 {
+		if oamEntry.id == 0 && x < 255 {
       ppu.STATUS.Sprite0Hit = true
     }
-		//if ppu.spritePriorities[i] == 0 {
-		if entry.priority == 0 {
+		if oamEntry.priority == 0 {
 			color1 = sprite | 0x10
 		} else {
 			color1 = background
@@ -251,19 +220,19 @@ func isHFlipped(spriteAttrs uint8) bool {
   return spriteAttrs >> 6 != 0
 }
 
-func (ppu *PPU) EvalSprites2() {
+func (ppu *PPU) EvalSprites() {
   nSpritesInScanline := 0
 
   for oamIdx := 0; oamIdx < len(ppu.oamData)/4; oamIdx++ {
     y, tileN, attrs, x := unpackOAMEntry(oamIdx, ppu.oamData[:])
 
-    if int(y) <= ppu.Scanline && int(y) + int(ppu.CTRL.SpriteSizeU) > ppu.Scanline {
+    if int(y) <= ppu.Scanline && int(y) + int(ppu.CTRL.SpriteSize) > ppu.Scanline {
       if nSpritesInScanline < 8 {
 
         spriteRow := ppu.Scanline - int(y)
 
         if isVFlipped(attrs) {
-          spriteRow = int(ppu.CTRL.SpriteSizeU) - spriteRow
+          spriteRow = int(ppu.CTRL.SpriteSize) - spriteRow
         }
 
         addr := ppu.CTRL.SpritePatTableAddr + uint16(tileN)*16 + uint16(spriteRow)
@@ -282,97 +251,16 @@ func (ppu *PPU) EvalSprites2() {
       }
     }
   }
-  ppu.spriteCount2 = nSpritesInScanline
+  ppu.spriteCount = nSpritesInScanline
 }
 
-func (ppu *PPU) EvalSprites() {
-	var h int
-  if ppu.CTRL.SpriteSize == SPRITE_SIZE_8 {
-		h = 8
-	} else {
-		h = 16
-	}
-	count := 0
-	for i := 0; i < 64; i++ {
-		y := ppu.oamData[i*4+0]
-		a := ppu.oamData[i*4+2]
-		x := ppu.oamData[i*4+3]
-		row := ppu.Scanline - int(y)
-		if row < 0 || row >= h {
-			continue
-		}
-		if count < 8 {
-			ppu.spritePatterns[count] = ppu.fetchSpritePattern(i, row)
-			ppu.spritePositions[count] = x
-			ppu.spritePriorities[count] = (a >> 5) & 1
-			ppu.spriteIndexes[count] = byte(i)
-		}
-		count++
-	}
-	if count > 8 {
-		count = 8
-    ppu.STATUS.SpriteOverflow = true
-	}
-	ppu.spriteCount = count
-}
-
-func (ppu *PPU) fetchSpritePattern(i int, row int) uint32 {
-	tile := ppu.oamData[i*4+1]
-	attributes := ppu.oamData[i*4+2]
-	var address uint16
-	//if ppu.flagSpriteSize == 0 {
-  if ppu.CTRL.SpriteSize == SPRITE_SIZE_8 {
-		if attributes&0x80 == 0x80 {
-			row = 7 - row
-		}
-		//table := ppu.flagSpriteTable
-		//address = 0x1000*uint16(table) + uint16(tile)*16 + uint16(row)
-    address = ppu.CTRL.SpritePatTableAddr + uint16(tile)*16 + uint16(row)
-	} else {
-		//if attributes&0x80 == 0x80 {
-		//	row = 15 - row
-		//}
-		//table := tile & 1
-		tile &= 0xFE
-		if row > 7 {
-			tile++
-			row -= 8
-		}
-		//address = 0x1000*uint16(table) + uint16(tile)*16 + uint16(row)
-    address = ppu.CTRL.SpritePatTableAddr + uint16(tile)*16 + uint16(row)
-	}
-	a := (attributes & 3) << 2
-	lowTileByte := ppu.Read(address)
-	highTileByte := ppu.Read(address + 8)
-  //log.Printf("Got tiles: %x, %x", ppu.Read(address), ppu.Read(address + 8))
-	var data uint32
-	for i := 0; i < 8; i++ {
-		var p1, p2 byte
-		if attributes&0x40 == 0x40 {
-			p1 = (lowTileByte & 1) << 0
-			p2 = (highTileByte & 1) << 1
-			lowTileByte >>= 1
-			highTileByte >>= 1
-		} else {
-			p1 = (lowTileByte & 0x80) >> 7
-			p2 = (highTileByte & 0x80) >> 6
-			lowTileByte <<= 1
-			highTileByte <<= 1
-		}
-		data <<= 4
-		data |= uint32(a | p1 | p2)
-	}
-	return data
-}
-
-func (ppu *PPU) spritePixel2() (uint8, uint8) {
+func (ppu *PPU) spritePixel() (OAMEntry, uint8) {
   if !ppu.MASK.showSprites {
-    return 0, 0
+    return OAMEntry{}, 0
   }
 
-	for oamIdx := 0; oamIdx < ppu.spriteCount2; oamIdx++ {
+	for oamIdx := 0; oamIdx < ppu.spriteCount; oamIdx++ {
     entry := ppu.oamEntries[oamIdx]
-
 
     // We know this sprite is visible in this scanline, but is it
     // visible in this column?
@@ -394,32 +282,11 @@ func (ppu *PPU) spritePixel2() (uint8, uint8) {
         continue
       }
 
-      index := uint8(oamIdx)
-      return index, pixel
+      return entry, pixel
     }
   }
 
-  return 0, 0
-}
-
-func (ppu *PPU) spritePixel() (byte, byte) {
-	if ppu.MASK.showSprites == false {
-		return 0, 0
-	}
-
-	for i := 0; i < ppu.spriteCount; i++ {
-		offset := (ppu.Dot - 1) - int(ppu.spritePositions[i])
-		if offset < 0 || offset > 7 {
-			continue
-		}
-		offset = 7 - offset
-		color := byte((ppu.spritePatterns[i] >> byte(offset*4)) & 0x0F)
-		if color%4 == 0 {
-			continue
-		}
-		return byte(i), color
-	}
-	return 0, 0
+  return OAMEntry{}, 0
 }
 
 const (
