@@ -13,26 +13,20 @@ type AddrSpace interface {
 }
 
 type CPUAddrSpace struct {
+  ctrlr *Controller
+
   RAM Memory
   ROM *Rom
 
   PPU *PPU
-
-  //APU
-
-  // Logger for tests
-  Logger Memory
-
-  // Mapper
-  // http://tuxnes.sourceforge.net/nesmapper.txt
 }
 
-func MakeCPUAddrSpace(rom *Rom, ppu *PPU) *CPUAddrSpace {
+func MakeCPUAddrSpace(rom *Rom, ppu *PPU, ctrlr *Controller) *CPUAddrSpace {
   return &CPUAddrSpace{
+    ctrlr:  ctrlr,
     RAM:    make(Memory, 0x800),
     ROM:    rom,
     PPU:    ppu,
-    Logger: make(Memory, 0x1000),
   }
 }
 
@@ -74,7 +68,7 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 
     case addr == 0x4016:
         //log.Printf("Not yet handled read to controller #1 at %x", addr)
-        return 0
+        return as.ctrlr.ReadState()
 
     case addr == 0x4017:
         //log.Printf("Not yet handled read to controller #2 at %x", addr)

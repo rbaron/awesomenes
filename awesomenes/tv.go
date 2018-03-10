@@ -36,7 +36,6 @@ func MakeTV() *TV {
   renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED | sdl.RENDERER_PRESENTVSYNC)
 
   texture, err := renderer.CreateTexture(
-    //sdl.PIXELFORMAT_ARGB8888, sdl.TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT)
     sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT)
 
 	if err != nil {
@@ -52,8 +51,47 @@ func MakeTV() *TV {
   }
 }
 
+func (tv *TV) UpdateInputState(ctrlr *Controller) {
+  for evt := sdl.PollEvent(); evt != nil; evt = sdl.PollEvent() {
+    switch evt.(type) {
+      case *sdl.KeyboardEvent:
+        tv.handleKBDEvevent(ctrlr, evt.(*sdl.KeyboardEvent))
+    }
+  }
+}
+
+func (tv *TV) handleKBDEvevent(ctrlr *Controller, evt *sdl.KeyboardEvent) {
+  if evt.Repeat != 0 {
+    return
+  }
+
+  fn := ctrlr.PushButton
+
+  if evt.Type == sdl.KEYUP {
+    fn = ctrlr.ReleaseButton
+  }
+
+  switch evt.Keysym.Sym {
+    case sdl.K_RETURN:
+      fn(CONTROLLER_BUTTONS_START)
+    case sdl.K_RSHIFT:
+      fn(CONTROLLER_BUTTONS_SELECT)
+    case sdl.K_a:
+      fn(CONTROLLER_BUTTONS_A)
+    case sdl.K_s:
+     fn(CONTROLLER_BUTTONS_B)
+    case sdl.K_UP:
+      fn(CONTROLLER_BUTTONS_UP)
+    case sdl.K_RIGHT:
+      fn(CONTROLLER_BUTTONS_RIGHT)
+    case sdl.K_DOWN:
+      fn(CONTROLLER_BUTTONS_DOWN)
+    case sdl.K_LEFT:
+      fn(CONTROLLER_BUTTONS_LEFT)
+  }
+}
+
 func (tv *TV) SetFrame(pixels []byte) {
-  //log.Printf("WIll set frame")
   tv.texture.Update(nil, pixels, SCREEN_WIDTH * 4)
 }
 

@@ -29,7 +29,9 @@ func main() {
   ppu := awesomenes.NewPPU(nil, rom)
   ppu.Reset()
 
-  cpuAddrSpace := awesomenes.MakeCPUAddrSpace(rom, ppu)
+  controller := awesomenes.MakeController()
+
+  cpuAddrSpace := awesomenes.MakeCPUAddrSpace(rom, ppu, controller)
 
   cpu := awesomenes.MakeCPU(cpuAddrSpace)
 
@@ -60,6 +62,8 @@ func main() {
       tv.ShowPixels()
       //time.Sleep(100)
       _ = time.Sleep
+
+      tv.UpdateInputState(controller)
     }
   }
   return
