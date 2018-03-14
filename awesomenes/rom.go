@@ -44,11 +44,6 @@ func ReadROM(path string) *Rom {
     log.Printf("Only mapper type 0 is supported so far (requested %x)", header.MapperN);
   }
 
-  if header.NPRGROMBanks != 2 {
-    log.Printf("Only 2 prg rom banks supported (found %x)", header.NPRGROMBanks)
-    //header.NPRGROMBanks = 2
-  }
-
   if header.NCHRROMBanks != 1 {
     log.Printf("Only 1 chr rom banks supported (found %x)", header.NCHRROMBanks)
   }

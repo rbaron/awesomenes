@@ -72,9 +72,7 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 
     // ROM PRG banks
     case addr >= 0x8000:
-      // SRAM mirrorred every 0x800 bytes
-      //return as.ROM.PRGROM.Read8((addr - 0x8000) % 0x4000)
-      return as.ROM.PRGROM.Read8(addr - 0x8000)
+      return as.ROM.PRGROM.Read8((addr - 0x8000) % (0x4000 * uint16(as.ROM.Header.NPRGROMBanks)))
 
     default:
       log.Fatalf("Invalid read from CPU mem space at %x", addr)
