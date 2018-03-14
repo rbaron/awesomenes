@@ -3,8 +3,8 @@ package awesomenes
 
 import (
   "log"
-	"image"
-	//"image/color"
+  "image"
+  //"image/color"
   "math"
 )
 
@@ -246,8 +246,8 @@ type PPU struct {
 
   // ENDOF MINE
 
-	//Memory           // memory interface
-	//console *Console // reference to parent object
+  //Memory           // memory interface
+  //console *Console // reference to parent object
   CPU *CPU
   rom *Rom
   TV *TV
@@ -276,28 +276,28 @@ type PPU struct {
   tempTileAddr      uint16
 
   // Holds 8 OAM entries for a single scanline
-	spriteCount       int
+  spriteCount       int
   oamEntries        [8]OAMEntry
 
-	//Cycle    int    // 0-340
-	//ScanLine int    // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
-	Frame    uint64 // frame counter
+  //Cycle    int    // 0-340
+  //ScanLine int    // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
+  Frame    uint64 // frame counter
 
-	// storage variables
-	paletteData   [32]byte
-	nameTableData [2048]byte
-	oamData       [256]byte
-	front         *image.RGBA
-	back          *image.RGBA
+  // storage variables
+  paletteData   [32]byte
+  nameTableData [2048]byte
+  oamData       [256]byte
+  front         *image.RGBA
+  back          *image.RGBA
 
-	// $2003 OAMADDR
-	oamAddress byte
+  // $2003 OAMADDR
+  oamAddress byte
 }
 
 //func NewPPU(console *Console) *PPU {
 func NewPPU(cpu *CPU, rom *Rom) *PPU {
-	//ppu := PPU{Memory: NewPPUMemory(console), console: console}
-	ppu := PPU{
+  //ppu := PPU{Memory: NewPPUMemory(console), console: console}
+  ppu := PPU{
     CPU:    cpu,
     rom:    rom,
     CTRL:   &PPUCTRL{},
@@ -305,35 +305,35 @@ func NewPPU(cpu *CPU, rom *Rom) *PPU {
     MASK:   &PPUMASK{},
     STATUS: &PPUSTATUS{},
   }
-	ppu.front = image.NewRGBA(image.Rect(0, 0, 256, 240))
-	ppu.back = image.NewRGBA(image.Rect(0, 0, 256, 240))
+  ppu.front = image.NewRGBA(image.Rect(0, 0, 256, 240))
+  ppu.back = image.NewRGBA(image.Rect(0, 0, 256, 240))
   ppu.Pixels = make([]byte, 4 * 256 * 240)
-	ppu.Reset()
-	return &ppu
+  ppu.Reset()
+  return &ppu
 }
 
 func (ppu *PPU) Reset() {
   ppu.Dot = 340
   ppu.Scanline = 0
-	ppu.Frame = 0
+  ppu.Frame = 0
   ppu.CTRL.Set(0)
   ppu.ADDR.SetOnSCROLLWrite(0)
   ppu.MASK.Set(0)
-	ppu.writeOAMAddress(0)
+  ppu.writeOAMAddress(0)
 }
 
 func (ppu *PPU) readPalette(address uint16) byte {
-	if address >= 16 && address%4 == 0 {
-		address -= 16
-	}
-	return ppu.paletteData[address]
+  if address >= 16 && address%4 == 0 {
+    address -= 16
+  }
+  return ppu.paletteData[address]
 }
 
 func (ppu *PPU) writePalette(address uint16, value byte) {
-	if address >= 16 && address%4 == 0 {
-		address -= 16
-	}
-	ppu.paletteData[address] = value
+  if address >= 16 && address%4 == 0 {
+    address -= 16
+  }
+  ppu.paletteData[address] = value
 }
 
 // VRAM 0x0000 - 0x3eff reads are buffered!
@@ -342,7 +342,7 @@ func (ppu *PPU) ReadData() uint8 {
   current := ppu.Read(ppu.ADDR.VAddr)
   ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
 
-	if ppu.ADDR.VAddr <= 0x3eff {
+  if ppu.ADDR.VAddr <= 0x3eff {
     ppu.ReadDataBuffer, current = current, ppu.ReadDataBuffer
   }
 
@@ -356,29 +356,29 @@ func (ppu *PPU) WriteData(v uint8) {
 }
 
 func (ppu *PPU) writeOAMAddress(value byte) {
-	ppu.oamAddress = value
+  ppu.oamAddress = value
 }
 
 func (ppu *PPU) readOAMData() byte {
-	return ppu.oamData[ppu.oamAddress]
+  return ppu.oamData[ppu.oamAddress]
 }
 
 func (ppu *PPU) writeOAMData(value byte) {
-	ppu.oamData[ppu.oamAddress] = value
-	ppu.oamAddress++
+  ppu.oamData[ppu.oamAddress] = value
+  ppu.oamAddress++
 }
 
 func (ppu *PPU) writeDMA(value byte) {
-	address := uint16(value) << 8
-	for i := 0; i < 256; i++ {
-		ppu.oamData[ppu.oamAddress] = ppu.CPU.mem.Read8(address)
-		ppu.oamAddress++
-		address++
-	}
+  address := uint16(value) << 8
+  for i := 0; i < 256; i++ {
+    ppu.oamData[ppu.oamAddress] = ppu.CPU.mem.Read8(address)
+    ppu.oamAddress++
+    address++
+  }
 }
 
 func (ppu *PPU) setVerticalBlank() {
-	ppu.front, ppu.back = ppu.back, ppu.front
+  ppu.front, ppu.back = ppu.back, ppu.front
   _ = math.Pow
 
   // COpy image to pixels
@@ -397,37 +397,37 @@ func (ppu *PPU) setVerticalBlank() {
 
   ppu.TV.SetFrame(ppu.Pixels)
 
-	ppu.STATUS.VBlankStarted = true
+  ppu.STATUS.VBlankStarted = true
   if ppu.CTRL.NMIonVBlank {
     ppu.CPU.nmiRequested = true
   }
 }
 
 func (ppu *PPU) Read(address uint16) byte {
-	address = address % 0x4000
-	switch {
-	case address < 0x2000:
+  address = address % 0x4000
+  switch {
+  case address < 0x2000:
     return ppu.rom.CHRROM[address]
-	case address < 0x3F00:
+  case address < 0x3F00:
     return ppu.nameTableData[address % 0x800]
-	case address < 0x4000:
-		return ppu.readPalette(address % 32)
-	default:
-		log.Fatalf("Invalid read from ppu at address %x", address)
-	}
-	return 0
+  case address < 0x4000:
+    return ppu.readPalette(address % 32)
+  default:
+    log.Fatalf("Invalid read from ppu at address %x", address)
+  }
+  return 0
 }
 
 func (ppu *PPU) Write(address uint16, value byte) {
-	address = address % 0x4000
-	switch {
-	case address < 0x2000:
+  address = address % 0x4000
+  switch {
+  case address < 0x2000:
     ppu.rom.CHRROM[address] = value
-	case address < 0x3F00:
+  case address < 0x3F00:
     ppu.nameTableData[address % 0x800] = value
-	case address < 0x4000:
-		ppu.writePalette(address % 32, value)
-	default:
-		log.Fatalf("Invalid write to ppu at address %x", address)
-	}
+  case address < 0x4000:
+    ppu.writePalette(address % 32, value)
+  default:
+    log.Fatalf("Invalid write to ppu at address %x", address)
+  }
 }

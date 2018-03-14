@@ -151,7 +151,7 @@ func (ppu *PPU) tickVisibleScanline() {
 
 func (ppu *PPU) RenderSinglePixel() {
   x  := ppu.Dot - 2
-	y  := ppu.Scanline
+  y  := ppu.Scanline
   fx := ppu.ADDR.FineXScroll
 
   var background uint8
@@ -167,26 +167,26 @@ func (ppu *PPU) RenderSinglePixel() {
 
   oamEntry, sprite := ppu.spritePixel()
 
-	b1 := background%4 != 0
-	s := sprite%4 != 0
+  b1 := background%4 != 0
+  s := sprite%4 != 0
 
-	var color1 byte
-	if !b1 && !s {
-		color1 = 0
-	} else if !b1 && s {
-		color1 = sprite | 0x10
-	} else if b1 && !s {
-		color1 = background
-	} else {
-		if oamEntry.id == 0 && x < 255 {
+  var color1 byte
+  if !b1 && !s {
+    color1 = 0
+  } else if !b1 && s {
+    color1 = sprite | 0x10
+  } else if b1 && !s {
+    color1 = background
+  } else {
+    if oamEntry.id == 0 && x < 255 {
       ppu.STATUS.Sprite0Hit = true
     }
-		if oamEntry.priority == 0 {
-			color1 = sprite | 0x10
-		} else {
-			color1 = background
-		}
-	}
+    if oamEntry.priority == 0 {
+      color1 = sprite | 0x10
+    } else {
+      color1 = background
+    }
+  }
 
   //color1 = sprite | 0x10
   addr := ppu.Read(0x3f00 + uint16(color1))
@@ -259,7 +259,7 @@ func (ppu *PPU) spritePixel() (OAMEntry, uint8) {
     return OAMEntry{}, 0
   }
 
-	for oamIdx := 0; oamIdx < ppu.spriteCount; oamIdx++ {
+  for oamIdx := 0; oamIdx < ppu.spriteCount; oamIdx++ {
     entry := ppu.oamEntries[oamIdx]
 
     // We know this sprite is visible in this scanline, but is it
