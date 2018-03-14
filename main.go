@@ -1,31 +1,30 @@
 package main
 
 import (
-  "github.com/rbaron/awesomenes/awesomenes"
+  "fmt"
   "os"
-  "bufio"
   "time"
+
+  "github.com/rbaron/awesomenes/awesomenes"
 )
 
-func readLines(path string) ([]string, error) {
-  file, err := os.Open(path)
-  if err != nil {
-    return nil, err
-  }
-  defer file.Close()
+const (
+  FRAME_RATE   = 60
+  FRAME_CYCLES = awesomenes.CPU_FREQ / FRAME_RATE
 
-  var lines []string
-  scanner := bufio.NewScanner(file)
-  for scanner.Scan() {
-    lines = append(lines, scanner.Text())
-  }
-  return lines, scanner.Err()
-}
+  // All timings in nanoseconds
+  FRAME_TIME   = 1.0 / (float64(FRAME_RATE) * 1e9)
+)
 
 func main() {
   tv := awesomenes.MakeTV()
 
-  rom := awesomenes.ReadROM("smb.nes")
+  if len(os.Args) != 2 {
+    fmt.Println("Usage: awesomenes ROM_PATH")
+    os.Exit(2)
+  }
+
+  rom := awesomenes.ReadROM(os.Args[1])
   ppu := awesomenes.NewPPU(nil, rom)
   ppu.Reset()
 
@@ -35,35 +34,39 @@ func main() {
 
   cpu := awesomenes.MakeCPU(cpuAddrSpace)
 
-  // Back ref to cpu from ppu so we can trigger NMIs
+  // Back ref to cpu and tv from ppu so we can trigger NMIs and update frames
   ppu.CPU = cpu
-  ppu.TV = tv
+  ppu.TV  = tv
 
   cpu.PowerUp()
 
-  // cpu.Run()
-  frameCycles := 29781
   var cpuCycles, ppuCycles int
 
-  var i = 0
+  t0 := time.Now().UnixNano()
+
   for {
+
     newCycles := cpu.Run()
-    i++
 
     cpuCycles += newCycles
 
     for ppuCycles = 0; ppuCycles < 3 * newCycles; ppuCycles++ {
-      //ppu.Step()
       ppu.TickScanline()
     }
 
-    if cpuCycles > frameCycles {
-      cpuCycles = 0
+    if cpuCycles > FRAME_CYCLES {
+      cpuCycles -= FRAME_CYCLES
+
       tv.ShowPixels()
-      //time.Sleep(100)
-      _ = time.Sleep
 
       tv.UpdateInputState(controller)
+
+      delta := FRAME_TIME - float64(time.Now().UnixNano() - t0)
+
+      if delta > 0 {
+        time.Sleep(time.Duration(delta))
+      }
+      t0 = time.Now().UnixNano()
     }
   }
   return

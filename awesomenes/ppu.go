@@ -336,20 +336,6 @@ func (ppu *PPU) writePalette(address uint16, value byte) {
 	ppu.paletteData[address] = value
 }
 
-func (ppu *PPU) readRegister(address uint16) byte {
-	switch address {
-	case 0x2002:
-    ppu.ADDR.SetOnSTATUSRead()
-    return ppu.STATUS.Get()
-	case 0x2004:
-		return ppu.readOAMData()
-	case 0x2007:
-		return ppu.ReadData()
-	}
-  panic("Invalid read")
-	return 0
-}
-
 // VRAM 0x0000 - 0x3eff reads are buffered!
 // https://wiki.nesdev.com/w/index.php/PPU_registers#The_PPUDATA_read_buffer_.28post-fetch.29
 func (ppu *PPU) ReadData() uint8 {
@@ -369,47 +355,19 @@ func (ppu *PPU) WriteData(v uint8) {
   ppu.ADDR.VAddr += ppu.CTRL.VRAMReadIncrement
 }
 
-func (ppu *PPU) writeRegister(address uint16, value byte) {
-  ppu.STATUS.LastWrite = value
-	switch address {
-	case 0x2000:
-    ppu.CTRL.Set(value)
-    ppu.ADDR.SetOnCTRLWrite(value)
-	case 0x2001:
-		//ppu.writeMask(value)
-    ppu.MASK.Set(value)
-	case 0x2003:
-		ppu.writeOAMAddress(value)
-	case 0x2004:
-		ppu.writeOAMData(value)
-	case 0x2005:
-    ppu.ADDR.SetOnSCROLLWrite(value)
-	case 0x2006:
-    ppu.ADDR.Write(value)
-	case 0x2007:
-		ppu.WriteData(value)
-	case 0x4014:
-		ppu.writeDMA(value)
-	}
-}
-
-// $2003: OAMADDR
 func (ppu *PPU) writeOAMAddress(value byte) {
 	ppu.oamAddress = value
 }
 
-// $2004: OAMDATA (read)
 func (ppu *PPU) readOAMData() byte {
 	return ppu.oamData[ppu.oamAddress]
 }
 
-// $2004: OAMDATA (write)
 func (ppu *PPU) writeOAMData(value byte) {
 	ppu.oamData[ppu.oamAddress] = value
 	ppu.oamAddress++
 }
 
-// $4014: OAMDMA
 func (ppu *PPU) writeDMA(value byte) {
 	address := uint16(value) << 8
 	for i := 0; i < 256; i++ {
@@ -455,7 +413,7 @@ func (ppu *PPU) Read(address uint16) byte {
 	case address < 0x4000:
 		return ppu.readPalette(address % 32)
 	default:
-		log.Fatalf("unhandled ppu memory read at address: 0x%04X", address)
+		log.Fatalf("Invalid read from ppu at address %x", address)
 	}
 	return 0
 }
@@ -470,6 +428,6 @@ func (ppu *PPU) Write(address uint16, value byte) {
 	case address < 0x4000:
 		ppu.writePalette(address % 32, value)
 	default:
-		log.Fatalf("unhandled ppu memory write at address: 0x%04X", address)
+		log.Fatalf("Invalid write to ppu at address %x", address)
 	}
 }

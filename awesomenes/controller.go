@@ -1,15 +1,10 @@
 package awesomenes
 
-//type ControllerStateProvider interface {
-//  GetControllerState() uint8
-//}
-
 type Controller struct {
   // Latch containing the buttons state in order from MSB to LSB:
   // A, B, Select, Start, Up, Down, Left, Right
   state  uint8
   strobe bool
-  //stateProvider *ControllerStateProvider
 }
 
 const (
@@ -32,7 +27,6 @@ func MakeController() *Controller {
 
 func (ctrl *Controller) ReadState() uint8 {
   if ctrl.strobe {
-    //currentState := (*ctrl.stateProvider).GetControllerState()
     // Always return A state during strobe
     return ctrl.state & 0x80
   } else {

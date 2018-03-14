@@ -18,6 +18,7 @@ const (
 
 const (
   MEM_STACK_BASE = 0x100
+  CPU_FREQ       = 1789773
 )
 
 type registers struct {
@@ -51,9 +52,9 @@ func MakeCPU(addrSpace AddrSpace) *CPU {
   }
 }
 
-func (cpu *CPU) read16bug(address uint16) uint16 {
+func (cpu *CPU) read16AndMaybeWrap(address uint16) uint16 {
   a := address
-  b := (a & 0xFF00) | uint16(byte(a)+1)
+  b := (a & 0xff00) | uint16(byte(a)+1)
   lo := cpu.mem.Read8(a)
   hi := cpu.mem.Read8(b)
   return uint16(hi)<<8 | uint16(lo)
@@ -65,16 +66,13 @@ func (cpu *CPU) PowerUp() {
   cpu.regs.SP = 0xfd
   cpu.regs.P  = 0x24
 
+  // nestest
   //cpu.regs.PC = 0xc000
 }
-
-var count = 0
 
 func (cpu *CPU) Run() int {
 
   if cpu.nmiRequested {
-    //log.Printf("WIll do NMI %d!\n", count)
-    count++
     cpu.doNMI()
   }
 
@@ -105,7 +103,6 @@ func (cpu *CPU) doNMI() {
   cpu.regs.PC = cpu.mem.Read16(0xfffa)
   cpu.setFlag(StatusFlagI)
   cpu.nmiRequested = false
-  //cpu.jumped = true
 }
 
 // Same format as the logs for nestest and the awesome github.com/fogleman/nes for debugging

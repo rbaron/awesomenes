@@ -41,26 +41,17 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 
     // PPU registers
     case addr >= 0x2000 && addr < 0x4000:
-      //log.Printf("Reading PPUADDR %x", 0x2000 + addr % 8)
-      return as.PPU.readRegister(0x2000 + addr%8)
-      //switch 0x2000 + addr % 8 {
-      //  case 0x2002:
-      //    as.PPU.ADDR.SetOnSTATUSRead()
-      //    return as.PPU.STATUS.Get()
-
-      //  case 0x2004:
-      //    return as.PPU.ReadOAMData()
-
-      //  case 0x2007:
-      //    return as.PPU.ReadData()
-
-      //  default:
-      //    log.Fatalf("Invalid read from CPU mem space at %x", addr)
-      //    return 0
-      //}
-
-    case addr == 0x4014:
-      return as.PPU.readRegister(addr)
+      switch 0x2000 + addr % 8 {
+        case 0x2002:
+          as.PPU.ADDR.SetOnSTATUSRead()
+          return as.PPU.STATUS.Get()
+        case 0x2004:
+          return as.PPU.readOAMData()
+        case 0x2007:
+          return as.PPU.ReadData()
+        default:
+          return 0
+      }
 
     case addr == 0x4015:
         //log.Printf("Not yet handled read to APU at %x", addr)
@@ -95,58 +86,36 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
 
   switch {
     case addr >= 0 && addr < 0x2000:
-      //if addr == 0x02 || addr == 0x03 {
-      //  log.Printf("WROTE LOG %x at %x", v, addr)
-      //}
-      // 0x0800 - 0x1fff mirrors 0x0000 - 0x07ff three times
       as.RAM.Write8(addr % 0x800, v)
 
     // PPU registers
     case addr >= 0x2000 && addr < 0x4000:
-      //as.PPU.STATUS.LastWrite = v
+      as.PPU.STATUS.LastWrite = v
 
-      as.PPU.writeRegister(0x2000+addr%8, v)
-      //log.Printf("Writing PPUADDR %x: %b", addr, v)
-      //switch 0x2000 + addr % 8 {
-      //  case 0x2000:
-      //    as.PPU.CTRL.Set(v)
-      //    as.PPU.ADDR.SetOnCTRLWrite(v)
-
-      //  case 0x2001:
-      //    as.PPU.MASK.Set(v)
-
-      //  case 0x2003:
-      //    as.PPU.OAMADDR = v
-
-      //  case 0x2004:
-      //    as.PPU.WriteOAMData(v)
-
-      //  case 0x2005:
-      //    as.PPU.ADDR.SetOnSCROLLWrite(v)
-      //    as.PPU.SCRL.Write(v)
-
-      //  case 0x2006:
-      //    as.PPU.ADDR.Write(v)
-
-      //  case 0x2007:
-      //    as.PPU.WriteData(v)
-
-      //  default:
-      //    log.Fatalf("Invalid write to CPU mem space at %x", addr)
-      //}
+      switch 0x2000 + addr % 8 {
+        case 0x2000:
+          as.PPU.CTRL.Set(v)
+          as.PPU.ADDR.SetOnCTRLWrite(v)
+        case 0x2001:
+          as.PPU.MASK.Set(v)
+        case 0x2003:
+          as.PPU.writeOAMAddress(v)
+        case 0x2004:
+          as.PPU.writeOAMData(v)
+        case 0x2005:
+          as.PPU.ADDR.SetOnSCROLLWrite(v)
+        case 0x2006:
+          as.PPU.ADDR.Write(v)
+        case 0x2007:
+          as.PPU.WriteData(v)
+      }
 
     case addr >= 0x4000 && addr <= 0x4013:
       //log.Printf("Not yet handled write to APU at %x", addr)
 
     case addr == 0x4014:
-      //Might need change with mapper
-      //data  := make([]uint8, 256)
-      //for i := range(data) {
-      //  data[i] = as.Read8(uint16(v) << 8 + uint16(i))
-      //}
-      //as.PPU.OMADMA(data)
-      //as.PPU.writeRegister(0x2000+addr%8, v)
-      as.PPU.writeRegister(addr, v)
+      as.PPU.STATUS.LastWrite = v
+      as.PPU.writeDMA(v)
 
     case addr == 0x4015:
       //log.Printf("Not yet handled write to APU at %x", addr)
@@ -160,19 +129,15 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
     // PRGRAM mirrorred every 0x800 bytes
     // No CHR RAM for now
     case addr >= 0x6000 && addr < 0x8000:
-      log.Printf("Writing to PRGRAM at %x", addr)
       as.ROM.PRGRAM.Write8((addr - 0x6000) % 0x800, v)
-      //as.ROM.PRGRAM.Write8(addr - 0x6000, v)
 
     default:
-      //log.Fatalf("Invalid write to CPU mem space at %x", addr)
       log.Printf("Invalid write to CPU mem space at %x", addr)
   }
 }
 
 // Little-endian mem layout
 func (as *CPUAddrSpace) Read16(addr uint16) uint16 {
-  //log.Printf("Reading from %x", addr)
   lo := uint16(as.Read8(addr))
   hi := uint16(as.Read8(addr + 1))
   return (hi << 8) + lo

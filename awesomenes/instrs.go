@@ -32,7 +32,6 @@ const (
 
 func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
   switch addrMode {
-    // TODO: does endianess matter with the abs modes? Currently using little-endian.
     case AddrModeAbs:
       return cpu.mem.Read16(cpu.regs.PC + 1)
 
@@ -56,42 +55,24 @@ func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
       } else {
         return cpu.regs.PC + 2 + offset - 0x100
       }
-      // Treat operand as signed int8 encoded as two's complement
-      //m := cpu.mem.Read8(cpu.regs.PC + 1)
-      //if (m >> 7) == 0x1 {
-      //  return cpu.regs.PC + 2 + uint16(m) - 0x100
-      //  //return cpu.regs.PC +  uint16(m) - 0x100
-      //} else {
-      //  return cpu.regs.PC + 2 + uint16(m)
-      //  //return cpu.regs.PC + uint16(m)
-      //}
 
     case AddrModeIndirect:
-      //address = cpu.Read16(cpu.Read16(cpu.PC + 1))
       m := cpu.mem.Read16(cpu.regs.PC + 1)
-      //return cpu.mem.Read16(m)
-      return cpu.read16bug(m)
+      return cpu.read16AndMaybeWrap(m)
 
     case AddrModeXIndirect:
-      //address = cpu.Read16(uint16(cpu.Read(cpu.PC+1) + cpu.X))
       m := cpu.mem.Read8(cpu.regs.PC + 1)
       x := cpu.regs.X
-      //return uint16(cpu.mem.Read8(uint16(m + x)))
-      //return cpu.mem.Read16(uint16(m + x))
-      return cpu.read16bug(uint16(m + x))
+      return cpu.read16AndMaybeWrap(uint16(m + x))
 
     case AddrModeIndirectY:
-      //address = cpu.Read16(uint16(cpu.Read(cpu.PC+1))) + uint16(cpu.Y)
       m := cpu.mem.Read8(cpu.regs.PC + 1)
       y := cpu.regs.Y
-      //return uint16(cpu.mem.Read8(uint16(m)) + y)
-      //return cpu.mem.Read16(uint16(m)) + uint16(y)
-      return cpu.read16bug(uint16(m)) + uint16(y)
+      return cpu.read16AndMaybeWrap(uint16(m)) + uint16(y)
 
     case AddrModeZeroPage:
       return uint16(cpu.mem.Read8(cpu.regs.PC + 1))
 
-    // TODO: difference from AddrModeXIndirect
     case AddrModeZeroX:
       return uint16(cpu.mem.Read8(cpu.regs.PC + 1) + cpu.regs.X)
 
@@ -103,7 +84,6 @@ func calculateAddr(cpu *CPU, addrMode addressingMode) uint16 {
 
 // Break
 func brk(cpu *CPU, addrMode addressingMode) {
-  // TODO might need to increment PC as well before pushing?
   cpu.Push16(cpu.regs.PC)
   cpu.Push8(cpu.regs.P)
   cpu.setFlag(StatusFlagB)
@@ -160,7 +140,7 @@ func lsr(cpu *CPU, addrMode addressingMode) {
   }
 }
 
-// Add with carry
+// Add with carry - borrowed from github.com/fogleman/nes
 func adc(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   a := cpu.regs.A
@@ -176,6 +156,7 @@ func adc(cpu *CPU, addrMode addressingMode) {
   cpu.setOrReset(StatusFlagV, (a^b)&0x80 == 0 && (a^cpu.regs.A)&0x80 != 0)
 }
 
+// Subtract with carry - borrowed from github.com/fogleman/nes
 func sbc(cpu *CPU, addrMode addressingMode) {
   addr := calculateAddr(cpu, addrMode)
   a := cpu.regs.A
@@ -195,7 +176,6 @@ func sbc(cpu *CPU, addrMode addressingMode) {
 // See http://wiki.nesdev.com/w/index.php/CPU_status_flag_behavior
 // for the meaning of | 0x10. Hint: it has none
 func php(cpu *CPU, addrMode addressingMode) {
-  //cpu.Push8(cpu.regs.P)
   cpu.Push8(cpu.regs.P | 0x10)
 }
 
