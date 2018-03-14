@@ -34,7 +34,7 @@ Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly 
 
 ➖ More mappers
 
-➖ Audio support (audio processing unit - PPU)
+➖ Audio support (audio processing unit - APU)
 
 
 # Resources
