@@ -13,7 +13,7 @@ The easiest way to run `awesomenes` is to use the `go get` command:
 
 ```
 $ go get github.com/rbaron/awesomenes
-$ awesomenes MY_ROOM
+$ awesomenes MY_ROM.nes
 ```
 
 # Status
