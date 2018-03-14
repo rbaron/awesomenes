@@ -18,7 +18,7 @@ $ awesomenes MY_ROM.nes
 
 # Status
 
-Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly work, although without audio so far. Supporting more games (i.e. different mappers) are a priority.
+Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly work, although without audio so far. Supporting more games (i.e. different mappers) is a priority.
 
 # Roadmap
 
