@@ -7,9 +7,18 @@ A basic NES emulator.
   <img src="https://i.imgur.com/ahSN16z.png" alt="smb" width="400px"/>
 </p>
 
+# Getting and running
+
+The easiest way to run `awesomenes` is to use the `go get` command:
+
+```
+$ go get github.com/rbaron/awesomenes
+$ awesomenes MY_ROOM
+```
+
 # Status
 
-Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly work, although without audio so far. Supporting more games (different mappers) are a priority.
+Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly work, although without audio so far. Supporting more games (i.e. different mappers) are a priority.
 
 # Roadmap
 
