@@ -2,7 +2,6 @@ package awesomenes
 
 import (
   "log"
-  "image/color"
 )
 
 // From http://www.thealmightyguru.com/Games/Hacking/Wiki/index.php?title=NES_Palette
@@ -42,10 +41,7 @@ func (ppu *PPU) TickScanline() {
       ppu.setVerticalBlank()
     }
   } else if lineType == SCANLINE_TYPE_POST {
-    // Currently setting frame at the same time as vblank is triggered
-    //if ppu.Dot == 0 {
-    //  //ppu.TV.SetFrame(ppu.Pixels)
-    //}
+    // Currently setting frame at the same time as vblank is triggered, so no-op for now
   }
 
   ppu.Dot += 1
@@ -196,9 +192,14 @@ func (ppu *PPU) RenderSinglePixel() {
   g := uint8((c >>  8) & 0xff)
   b := uint8((c >>  0) & 0xff)
 
-  cc := color.RGBA{r, g, b, 0x00}
+  if x >= 0 && x <= 256 && y < 240 {
+    pos := 4*(y*256 + x)
+    ppu.Pixels[pos + 0] = 0xff
+    ppu.Pixels[pos + 1] = b
+    ppu.Pixels[pos + 2] = g
+    ppu.Pixels[pos + 3] = r
+  }
 
-  ppu.back.SetRGBA(x, y, cc)
 }
 
 func unpackOAMEntry(entryIdx int, oamData []uint8) (y, tileN, attrs, x uint8) {

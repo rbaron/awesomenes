@@ -3,12 +3,8 @@ package awesomenes
 
 import (
   "log"
-  "image"
-  //"image/color"
-  "math"
 )
 
-// MINE
 func byteSetter(v uint8, bitN uint8, ifNotSet uint8, ifSet uint8) uint8 {
   if v & (0x1 << bitN) == 0 { return ifNotSet } else { return ifSet }
 }
@@ -20,8 +16,6 @@ func addrSetter(v uint8, bitN uint8, ifNotSet uint16, ifSet uint16) uint16 {
 func boolSetter(v uint8, bitN uint8, ifNotSet bool, ifSet bool) bool {
   if v & (0x1 << bitN) == 0 { return ifNotSet } else { return ifSet }
 }
-
-// PPUCTRL
 
 const (
   MS_READ_EXT      = false
@@ -287,16 +281,12 @@ type PPU struct {
   paletteData   [32]byte
   nameTableData [2048]byte
   oamData       [256]byte
-  front         *image.RGBA
-  back          *image.RGBA
 
-  // $2003 OAMADDR
   oamAddress byte
 }
 
 //func NewPPU(console *Console) *PPU {
 func NewPPU(cpu *CPU, rom *Rom) *PPU {
-  //ppu := PPU{Memory: NewPPUMemory(console), console: console}
   ppu := PPU{
     CPU:    cpu,
     rom:    rom,
@@ -305,8 +295,6 @@ func NewPPU(cpu *CPU, rom *Rom) *PPU {
     MASK:   &PPUMASK{},
     STATUS: &PPUSTATUS{},
   }
-  ppu.front = image.NewRGBA(image.Rect(0, 0, 256, 240))
-  ppu.back = image.NewRGBA(image.Rect(0, 0, 256, 240))
   ppu.Pixels = make([]byte, 4 * 256 * 240)
   ppu.Reset()
   return &ppu
@@ -378,22 +366,6 @@ func (ppu *PPU) writeDMA(value byte) {
 }
 
 func (ppu *PPU) setVerticalBlank() {
-  ppu.front, ppu.back = ppu.back, ppu.front
-  _ = math.Pow
-
-  // COpy image to pixels
-  for l := 0; l < 240; l++ {
-    for c := 0; c < 256; c++ {
-      r, g, b, _ := ppu.front.At(c, l).RGBA()
-      pos := 4*(l*256 + c)
-
-      // The 0 positiion seems to have no effect in any value
-      ppu.Pixels[pos + 0] = 0xff//uint8(mean)
-      ppu.Pixels[pos + 1] = uint8(b & 0xff)
-      ppu.Pixels[pos + 2] = uint8(g & 0xff)
-      ppu.Pixels[pos + 3] = uint8(r & 0xff)
-    }
-  }
 
   ppu.TV.SetFrame(ppu.Pixels)
 
