@@ -3,8 +3,8 @@
 A basic NES emulator.
 
 <p align="center">
-  <img src="https://i.imgur.com/z8xYcxV.png" alt="dk" style="width: 320px;"/>
-  <img src="https://i.imgur.com/ahSN16z.png" alt="dk" style="width: 320px;"/>
+  <img src="https://i.imgur.com/z8xYcxV.png" alt="dk"  width="400px"/>
+  <img src="https://i.imgur.com/ahSN16z.png" alt="smb" width="400px"/>
 </p>
 
 # Status
@@ -14,12 +14,19 @@ Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly 
 # Roadmap
 
 ✅ CPU emulation
+
 ✅ Video support (picture processing unit - PPU)
+
 ✅ Keyboard input
+
 ✅ Mapper 0
+
 ➖  Joystick input
+
 ➖ More mappers
+
 ➖ Audio support (audio processing unit - PPU)
+
 
 # Resources
 
