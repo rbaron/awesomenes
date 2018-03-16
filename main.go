@@ -13,7 +13,7 @@ const (
 	FRAME_CYCLES = awesomenes.CPU_FREQ / FRAME_RATE
 
 	// All timings in nanoseconds
-	FRAME_TIME = 1.0 / (float64(FRAME_RATE) * 1e9)
+	FRAME_TIME = 1e9 / float64(FRAME_RATE)
 )
 
 func main() {
@@ -56,7 +56,7 @@ func main() {
 
 			if delta := FRAME_TIME - float64(time.Now().UnixNano()-t0); delta > 0 {
 				time.Sleep(time.Duration(delta))
-			}
+      }
 
 			t0 = time.Now().UnixNano()
 		}
