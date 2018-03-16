@@ -122,14 +122,14 @@ func (addr *PPUADDR) SetOnSTATUSRead() {
 	addr.WriteHi = false
 }
 
+// http://wiki.nesdev.com/w/index.php/PPU_scrolling
 func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
 	if addr.WriteHi == false {
-		addr.TAddr = (addr.TAddr & 0xFFE0) | uint16(v>>3)
+		addr.TAddr = uint16(v >> 3)
 		addr.FineXScroll = v & 0x7
 		addr.WriteHi = true
 	} else {
-		addr.TAddr = (addr.TAddr & 0x8FFF) | ((uint16(v) & 0x07) << 12)
-		addr.TAddr = (addr.TAddr & 0xFC1F) | ((uint16(v) & 0xF8) << 2)
+		addr.TAddr |= uint16(v&0x07<<12) | uint16(v%0xf8<<2)
 		addr.WriteHi = false
 	}
 }
@@ -143,7 +143,6 @@ func (addr *PPUADDR) IncrementFineY() {
 		v += 0x1000
 		addr.VAddr = v
 	} else {
-		//v &= ^0x7000
 		v &= 0x8fff
 		y = (v & 0x03e0) >> 5
 		if y == 29 {
