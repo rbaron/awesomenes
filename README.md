@@ -1,6 +1,6 @@
 # 🎮 awesomenes
 
-A basic NES emulator.
+A NES emulator written in Go.
 
 <p align="center">
   <img src="https://i.imgur.com/z8xYcxV.png" alt="dk"  width="400px"/>
@@ -20,6 +20,28 @@ $ awesomenes MY_ROM.nes
 
 Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly work, although without audio so far. Supporting more games (i.e. different mappers) is a priority.
 
+# Controller inputs
+
+## Keyboard (controller 1)
+
+```
+Arrow keys  -> NES arrows
+A           -> NES A
+S           -> NES B
+Enter       -> NES start
+Right shift -> NES select
+```
+
+## Nintendo Switch Joycon (controller 1)
+
+```
+Directional -> NES arrows
+Down arrow  -> NES A
+Right arrow -> NES B
+SL          -> NES select
+SR          -> NES start
+```
+
 # Roadmap
 
 ✅ CPU emulation
@@ -30,9 +52,11 @@ Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly 
 
 ✅ Mapper 0
 
-➖  Joystick input
+✅ Joystick input (tested with Nintendo Switch Joycon)
 
 ➖ More mappers
+
+➖ Save state
 
 ➖ Audio support (audio processing unit - APU)
 

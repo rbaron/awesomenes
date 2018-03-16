@@ -44,6 +44,9 @@ func MakeTV() *TV {
 
 	renderer.SetLogicalSize(SCREEN_WIDTH, SCREEN_HEIGHT)
 
+	// Initialize joystick if present
+	sdl.JoystickOpen(0)
+
 	return &TV{
 		window:   window,
 		renderer: renderer,
@@ -56,6 +59,12 @@ func (tv *TV) UpdateInputState(ctrlr *Controller) {
 		switch evt.(type) {
 		case *sdl.KeyboardEvent:
 			tv.handleKBDEvevent(ctrlr, evt.(*sdl.KeyboardEvent))
+
+		case *sdl.JoyHatEvent:
+			tv.handleJoyHatEvent(ctrlr, evt.(*sdl.JoyHatEvent))
+
+		case *sdl.JoyButtonEvent:
+			tv.handleJoyButtonEvent(ctrlr, evt.(*sdl.JoyButtonEvent))
 		}
 	}
 }
@@ -89,6 +98,44 @@ func (tv *TV) handleKBDEvevent(ctrlr *Controller, evt *sdl.KeyboardEvent) {
 	case sdl.K_LEFT:
 		fn(CONTROLLER_BUTTONS_LEFT)
 	}
+}
+
+func (tv *TV) handleJoyHatEvent(ctrlr *Controller, evt *sdl.JoyHatEvent) {
+	v := evt.Value
+
+	pressOrRelease := func(SDL_BTN uint8, CTRL_BTN uint8) {
+		if v&SDL_BTN == 0 {
+			ctrlr.ReleaseButton(CTRL_BTN)
+		} else {
+			ctrlr.PushButton(CTRL_BTN)
+		}
+	}
+
+	pressOrRelease(sdl.HAT_UP, CONTROLLER_BUTTONS_UP)
+	pressOrRelease(sdl.HAT_RIGHT, CONTROLLER_BUTTONS_RIGHT)
+	pressOrRelease(sdl.HAT_DOWN, CONTROLLER_BUTTONS_DOWN)
+	pressOrRelease(sdl.HAT_LEFT, CONTROLLER_BUTTONS_LEFT)
+}
+
+func (tv *TV) handleJoyButtonEvent(ctrlr *Controller, evt *sdl.JoyButtonEvent) {
+	pressOrRelease := func(SDL_BTN uint8, CTRL_BTN uint8) {
+		if evt.Button == SDL_BTN {
+			if evt.State == sdl.RELEASED {
+				ctrlr.ReleaseButton(CTRL_BTN)
+			} else {
+				ctrlr.PushButton(CTRL_BTN)
+			}
+		}
+	}
+
+	// Down arrow
+	pressOrRelease(0, CONTROLLER_BUTTONS_B)
+	// Right arrow
+	pressOrRelease(1, CONTROLLER_BUTTONS_A)
+	// SL
+	pressOrRelease(4, CONTROLLER_BUTTONS_SELECT)
+	// SR
+	pressOrRelease(5, CONTROLLER_BUTTONS_START)
 }
 
 func (tv *TV) SetFrame(pixels []byte) {
