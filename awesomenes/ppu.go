@@ -374,15 +374,21 @@ func (ppu *PPU) setVerticalBlank() {
 	}
 }
 
+func (ppu *PPU) getMirroredNametableAddr(addr uint16) uint16 {
+	if ppu.rom.Header.VerticalMirror {
+		return addr % 0x0800
+	} else {
+		return ((addr - 0x2000) / 0x800) + addr%0x0400
+	}
+}
+
 func (ppu *PPU) Read(address uint16) byte {
 	address = address % 0x4000
 	switch {
 	case address < 0x2000:
 		return ppu.rom.CHRROM[address]
-
-		// TODO: Mirroring (hardcoded vertical for now)
 	case address < 0x3F00:
-		return ppu.nameTableData[address%0x800]
+		return ppu.nameTableData[ppu.getMirroredNametableAddr(address)]
 	case address < 0x4000:
 		return ppu.readPalette(address % 32)
 	default:
@@ -396,10 +402,8 @@ func (ppu *PPU) Write(address uint16, value byte) {
 	switch {
 	case address < 0x2000:
 		ppu.rom.CHRROM[address] = value
-
-		// TODO: Mirroring (hardcoded vertical for now)
 	case address < 0x3F00:
-		ppu.nameTableData[address%0x800] = value
+		ppu.nameTableData[ppu.getMirroredNametableAddr(address)] = value
 	case address < 0x4000:
 		ppu.writePalette(address%32, value)
 	default:
