@@ -25,7 +25,7 @@ func main() {
 	}
 
 	rom := awesomenes.ReadROM(os.Args[1])
-  mapper := &awesomenes.Mapper0{ROM: rom}
+  mapper := awesomenes.MakeMapper(rom)
 
 	ppu := awesomenes.MakePPU(nil, rom, mapper)
 	ppu.Reset()

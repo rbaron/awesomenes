@@ -29,7 +29,7 @@ func ReadROM(path string) *Rom {
 	data, _ := ioutil.ReadFile(path)
 
 	if string(data[:3]) != "NES" {
-		panic("Invalid ROM file" + string(data[:3]))
+		log.Fatalf("Invalid ROM file" + string(data[:3]))
 	}
 
 	header := &RomHeader{
@@ -38,18 +38,6 @@ func ReadROM(path string) *Rom {
 		NCHRROMBanks:   data[5],
 		HasTrainer:     (data[6] & (0x1 << 2)) > 0,
 		VerticalMirror: data[6]&0x1 == 0x1,
-	}
-
-	if header.MapperN != 0 {
-		log.Printf("Only mapper type 0 is supported so far (requested %x)", header.MapperN)
-	}
-
-	if header.NCHRROMBanks != 1 {
-		log.Printf("Only 1 chr rom banks supported (found %x)", header.NCHRROMBanks)
-	}
-
-	if !header.VerticalMirror {
-		log.Printf("Only vertical mirroring supported so far")
 	}
 
 	var (
