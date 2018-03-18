@@ -246,6 +246,8 @@ type PPU struct {
 	CPU    *CPU
 	rom    *Rom
 	TV     *TV
+	Mapper Mapper
+
 	Pixels []byte
 
 	ReadDataBuffer uint8
@@ -284,11 +286,11 @@ type PPU struct {
 	oamAddress byte
 }
 
-//func NewPPU(console *Console) *PPU {
-func NewPPU(cpu *CPU, rom *Rom) *PPU {
+func MakePPU(cpu *CPU, rom *Rom, mapper Mapper) *PPU {
 	ppu := PPU{
 		CPU:    cpu,
 		rom:    rom,
+		Mapper: mapper,
 		CTRL:   &PPUCTRL{},
 		ADDR:   &PPUADDR{},
 		MASK:   &PPUMASK{},
@@ -386,7 +388,7 @@ func (ppu *PPU) Read(address uint16) byte {
 	address = address % 0x4000
 	switch {
 	case address < 0x2000:
-		return ppu.rom.CHRROM[address]
+		return ppu.Mapper.Read8(address)
 	case address < 0x3F00:
 		return ppu.nameTableData[ppu.getMirroredNametableAddr(address)]
 	case address < 0x4000:

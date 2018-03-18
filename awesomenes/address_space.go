@@ -19,14 +19,17 @@ type CPUAddrSpace struct {
 	ROM *Rom
 
 	PPU *PPU
+
+	Mapper Mapper
 }
 
-func MakeCPUAddrSpace(rom *Rom, ppu *PPU, ctrlr *Controller) *CPUAddrSpace {
+func MakeCPUAddrSpace(rom *Rom, ppu *PPU, ctrlr *Controller, mapper Mapper) *CPUAddrSpace {
 	return &CPUAddrSpace{
-		ctrlr: ctrlr,
-		RAM:   make(Memory, 0x800),
-		ROM:   rom,
-		PPU:   ppu,
+		ctrlr:  ctrlr,
+		RAM:    make(Memory, 0x800),
+		ROM:    rom,
+		PPU:    ppu,
+		Mapper: mapper,
 	}
 }
 
@@ -68,7 +71,6 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 	// PRGRAM mirrorred every 0x800 bytes
 	case addr >= 0x6000 && addr < 0x8000:
 		return as.ROM.PRGRAM.Read8((addr - 0x6000) % 0x800)
-		//return as.ROM.PRGRAM.Read8(addr - 0x6000)
 
 	// ROM PRG banks
 	case addr >= 0x8000:
@@ -128,6 +130,9 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
 	// No CHR RAM for now
 	case addr >= 0x6000 && addr < 0x8000:
 		as.ROM.PRGRAM.Write8((addr-0x6000)%0x800, v)
+
+	case addr >= 0x8000:
+		as.Mapper.Write8(addr, v)
 
 	default:
 		log.Printf("Invalid write to CPU mem space at %x", addr)

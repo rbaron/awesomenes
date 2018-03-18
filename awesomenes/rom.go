@@ -74,7 +74,5 @@ func ReadROM(path string) *Rom {
 		PRGRAM: make(Memory, 0x2000),
 	}
 
-	//rom.ROM.Dump(0, 256)
-
 	return rom
 }

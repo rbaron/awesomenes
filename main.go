@@ -25,11 +25,13 @@ func main() {
 	}
 
 	rom := awesomenes.ReadROM(os.Args[1])
-	ppu := awesomenes.NewPPU(nil, rom)
+  mapper := &awesomenes.Mapper0{ROM: rom}
+
+	ppu := awesomenes.MakePPU(nil, rom, mapper)
 	ppu.Reset()
 
 	controller := awesomenes.MakeController()
-	cpuAddrSpace := awesomenes.MakeCPUAddrSpace(rom, ppu, controller)
+	cpuAddrSpace := awesomenes.MakeCPUAddrSpace(rom, ppu, controller, mapper)
 	cpu := awesomenes.MakeCPU(cpuAddrSpace)
 
 	ppu.CPU = cpu
