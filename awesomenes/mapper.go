@@ -13,6 +13,8 @@ func MakeMapper(rom *Rom) Mapper {
 		return &Mapper0{ROM: rom}
 	case 3:
 		return &Mapper3{ROM: rom}
+	case 4:
+		return MakeMapper4(rom)
 	default:
 		log.Fatalf("Unsupported mapper: %x", rom.Header.MapperN)
 		return nil

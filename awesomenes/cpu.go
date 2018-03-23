@@ -37,6 +37,9 @@ type CPU struct {
 	// Has a non-maskable interrupt been requested?
 	nmiRequested bool
 
+	// Has a interrupt been requested?
+	irqRequested bool
+
 	// Set to true if an instruction modifies the PC
 	jumped bool
 }
@@ -70,6 +73,10 @@ func (cpu *CPU) Run() int {
 		cpu.doNMI()
 	}
 
+	if cpu.irqRequested {
+		cpu.doIRQ()
+	}
+
 	// Print current CPU state for debugging
 	//fmt.Printf("%v", cpu)
 
@@ -98,6 +105,15 @@ func (cpu *CPU) doNMI() {
 	cpu.regs.PC = cpu.mem.Read16(0xfffa)
 	cpu.setFlag(StatusFlagI)
 	cpu.nmiRequested = false
+}
+
+// Push PC, push P, jump to address in 0xfffe
+func (cpu *CPU) doIRQ() {
+	cpu.Push16(cpu.regs.PC)
+	cpu.Push8(cpu.regs.P)
+	cpu.regs.PC = cpu.mem.Read16(0xfffe)
+	cpu.setFlag(StatusFlagI)
+	cpu.irqRequested = false
 }
 
 // Same format as the logs for nestest and the awesome github.com/fogleman/nes for debugging

@@ -15,8 +15,10 @@ type Rom struct {
 
 type RomHeader struct {
 	MapperN uint8
+
 	// 16kB each
 	NPRGROMBanks uint8
+
 	// 8kB each
 	NCHRROMBanks uint8
 
@@ -41,8 +43,8 @@ func ReadROM(path string) *Rom {
 	}
 
 	var (
-		prgBeginning uint16 = 16
-		prgEnd       uint16 = 16 + uint16(header.NPRGROMBanks)*0x4000
+		prgBeginning uint64 = 16
+		prgEnd       uint64 = 16 + uint64(header.NPRGROMBanks)*0x4000
 	)
 
 	if header.HasTrainer {
@@ -51,8 +53,8 @@ func ReadROM(path string) *Rom {
 	}
 
 	var (
-		chrBeginning uint16 = prgEnd
-		chrEnd       uint16 = prgEnd + uint16(header.NCHRROMBanks)*0x2000
+		chrBeginning uint64 = prgEnd
+		chrEnd       uint64 = prgEnd + uint64(header.NCHRROMBanks)*0x2000
 	)
 
 	rom := &Rom{

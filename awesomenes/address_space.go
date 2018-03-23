@@ -36,7 +36,6 @@ func MakeCPUAddrSpace(rom *Rom, ppu *PPU, ctrlr *Controller, mapper Mapper) *CPU
 //http://wiki.nesdev.com/w/index.php/CPU_memory_map
 //https://wiki.nesdev.com/w/index.php/NROM (Hard coded mapper 0 for now)
 func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
-	//log.Printf("Reading CPU space %x", addr)
 	switch {
 	case addr >= 0 && addr < 0x2000:
 		// 0x0800 - 0x1fff mirrors 0x0000 - 0x07ff three times
@@ -68,13 +67,17 @@ func (as *CPUAddrSpace) Read8(addr uint16) uint8 {
 		//log.Printf("Not yet handled read to controller #2 at %x", addr)
 		return 0
 
-	// PRGRAM mirrorred every 0x800 bytes
+	case addr >= 0x4000 && addr < 0x6000:
+		//log.Printf("Not yet handled read to %x", addr)
+		return 0
+
+	// PRGRAM
 	case addr >= 0x6000 && addr < 0x8000:
-		return as.ROM.PRGRAM.Read8((addr - 0x6000) % 0x800)
+		return as.ROM.PRGRAM.Read8((addr - 0x6000))
 
 	// ROM PRG banks
 	case addr >= 0x8000:
-		return as.ROM.PRGROM.Read8((addr - 0x8000) % (0x4000 * uint16(as.ROM.Header.NPRGROMBanks)))
+		return as.Mapper.Read8(addr)
 
 	default:
 		log.Fatalf("Invalid read from CPU mem space at %x", addr)
@@ -124,12 +127,14 @@ func (as *CPUAddrSpace) Write8(addr uint16, v uint8) {
 		//log.Printf("Not yet handled write to controllers at %x", addr)
 
 	case addr == 0x4017:
-		//log.Printf("Not yet handled write to APU at %x", addr)
+	//log.Printf("Not yet handled write to APU at %x", addr)
 
-	// PRGRAM mirrorred every 0x800 bytes
-	// No CHR RAM for now
+	case addr >= 0x4000 && addr < 0x6000:
+		//log.Printf("Not yet handled write to CPU at %x", addr)
+
+	// PRGRAM
 	case addr >= 0x6000 && addr < 0x8000:
-		as.ROM.PRGRAM.Write8((addr-0x6000)%0x800, v)
+		as.ROM.PRGRAM.Write8((addr - 0x6000), v)
 
 	case addr >= 0x8000:
 		as.Mapper.Write8(addr, v)
