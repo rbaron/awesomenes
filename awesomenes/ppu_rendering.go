@@ -270,7 +270,22 @@ func (ppu *PPU) EvalSprites() {
 					spriteRow = int(ppu.CTRL.SpriteSize) - spriteRow
 				}
 
-				addr := ppu.CTRL.SpritePatTableAddr + uint16(tileN)*16 + uint16(spriteRow)
+				var patternTableBaseAddr uint16
+
+				if ppu.CTRL.SpriteSize == 8 {
+					patternTableBaseAddr = ppu.CTRL.SpritePatTableAddr
+				} else {
+					patternTableBaseAddr = 0x1000 * uint16(tileN&0x01)
+
+					if spriteRow >= 8 {
+						spriteRow -= 8
+						tileN |= 0x01
+					} else {
+						tileN &= 0xfe
+					}
+				}
+
+				addr := patternTableBaseAddr + uint16(tileN)*16 + uint16(spriteRow)
 
 				ppu.oamEntries[nSpritesInScanline].id = oamIdx
 				ppu.oamEntries[nSpritesInScanline].x = x
