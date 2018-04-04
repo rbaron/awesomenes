@@ -129,7 +129,7 @@ func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
 		addr.FineXScroll = v & 0x7
 		addr.WriteHi = true
 	} else {
-		addr.TAddr |= uint16(v&0x07<<12) | uint16(v%0xf8<<2)
+		addr.TAddr |= (uint16(v)&0x07)<<12 | (uint16(v)&0xf8)<<2
 		addr.WriteHi = false
 	}
 }
@@ -380,7 +380,7 @@ func (ppu *PPU) getMirroredNametableAddr(addr uint16) uint16 {
 	if ppu.rom.Header.VerticalMirror {
 		return addr % 0x0800
 	} else {
-		return ((addr - 0x2000) / 0x800) + addr%0x0400
+		return (addr>>1)&0x400 + addr%0x400
 	}
 }
 
