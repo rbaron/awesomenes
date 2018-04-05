@@ -96,7 +96,7 @@ func (addr *PPUADDR) FineY() uint16 {
 
 func (addr *PPUADDR) Write(v uint8) {
 	if addr.WriteHi == false {
-		addr.TAddr = (addr.TAddr & 0x80FF) | ((uint16(v) & 0x3F) << 8)
+		addr.TAddr = (addr.TAddr & 0x80FF) | (uint16(v) & 0x3F) << 8
 		addr.WriteHi = true
 	} else {
 		addr.TAddr = (addr.TAddr & 0xFF00) | uint16(v)
@@ -125,7 +125,7 @@ func (addr *PPUADDR) SetOnSTATUSRead() {
 // http://wiki.nesdev.com/w/index.php/PPU_scrolling
 func (addr *PPUADDR) SetOnSCROLLWrite(v uint8) {
 	if addr.WriteHi == false {
-		addr.TAddr = uint16(v >> 3)
+		addr.TAddr |= uint16(v >> 3)
 		addr.FineXScroll = v & 0x7
 		addr.WriteHi = true
 	} else {
