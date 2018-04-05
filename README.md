@@ -6,6 +6,9 @@ A NES emulator written in Go.
   <img src="https://i.imgur.com/z8xYcxV.png" alt="dk"  width="400px"/>
   <img src="https://i.imgur.com/ahSN16z.png" alt="smb" width="400px"/>
 </p>
+<p align="center">
+  <img src="https://i.imgur.com/XX03vOV.png" alt="dk"  width="400px"/>
+</p>
 
 # Getting and running
 
@@ -18,7 +21,14 @@ $ awesomenes MY_ROM.nes
 
 # Status
 
-Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 mostly work, although without audio so far. Supporting more games (i.e. different mappers) is a priority.
+Games that use the [mapper](http://wiki.nesdev.com/w/index.php/Mapper) 0 (NROM) mostly work, although without audio so far. Games that use mapper 4 (mmc3) should work with some eventual glitches. 
+
+Tested games:
+
+- Donkey Kong (NROM)
+- Super Mario Bros. (NROM)
+- Super Mario Bros. 2 (mmc3)
+- Super Mario Bros. 3 (mmc3, with some glitches)
 
 # Controller inputs
 
@@ -53,6 +63,8 @@ SR          -> NES start
 ✅ Mapper 0
 
 ✅ Joystick input (tested with Nintendo Switch Joycon)
+
+✅ Mapper 4 (...kinda)
 
 ➖ More mappers
 
