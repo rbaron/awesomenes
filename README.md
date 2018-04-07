@@ -12,7 +12,13 @@ A NES emulator written in Go.
 
 # Getting and running
 
-The easiest way to run `awesomenes` is to use the `go get` command:
+`awesomenes` uses `sld2` for rendering and input processing. It may be necessary to install it beforehand. On macOS, using homebrew:
+
+```
+$ brew install sdl2
+```
+
+Other systems/package managers should provide similar `sld2`/`libsdl2` packages. Then use the `go get`:
 
 ```
 $ go get github.com/rbaron/awesomenes
